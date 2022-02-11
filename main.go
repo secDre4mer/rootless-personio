@@ -1,12 +1,11 @@
 package main
 
 import (
+	"github.com/joho/godotenv"
+	"goPersonio/pkg/personio"
 	"log"
 	"os"
 	"time"
-
-	"github.com/joho/godotenv"
-	"goPersonio/pkg/personio"
 )
 
 func main() {
@@ -21,5 +20,6 @@ func main() {
 
 	p := personio.NewPersonio(personioBaseURL, personioUser, personioPassword)
 	p.LoginToPersonio()
-	p.SetWorkingTimes(time.Now(), time.Now().Add(time.Minute*4))
+	//p.SetWorkingTimes(time.Now(), time.Now().Add(time.Minute*4))
+	p.GetWorkingTimes(time.Now().Add(-time.Hour*96), time.Now())
 }

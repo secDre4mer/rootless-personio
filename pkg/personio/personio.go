@@ -236,3 +236,78 @@ type PersonioPeriodsResult struct {
 		} `json:"relationships"`
 	} `json:"data"`
 }
+
+type PersonioPeriods struct {
+	Success bool `json:"success"`
+	Error   struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+
+	Data []struct {
+		ID         string `json:"id"`
+		Type       string `json:"type"`
+		Attributes struct {
+			Start           time.Time `json:"start"`
+			End             time.Time `json:"end"`
+			LegacyBreakMin  int       `json:"legacy_break_min"`
+			Comment         string    `json:"comment"`
+			PeriodType      string    `json:"period_type"`
+			CreatedAt       time.Time `json:"created_at"`
+			UpdatedAt       time.Time `json:"updated_at"`
+			EmployeeID      int       `json:"employee_id"`
+			CreatedBy       int       `json:"created_by"`
+			AttendanceDayID string    `json:"attendance_day_id"`
+		} `json:"attributes"`
+	} `json:"data"`
+}
+
+func (p *Personio) GetWorkingTimes(from, to time.Time) *PersonioPeriods {
+	path := p.baseURL + "api/v1/attendances/periods"
+
+	req, _ := http.NewRequest("GET", path, nil)
+	req.Header.Set("accept", "application/json")
+	//req.Header.Set("Accept", "application/json, text/plain, */*")
+
+	//?filter[startDate]=2022-01-31&filter[endDate]=2022-03-06&filter[employee]=991824
+	q := req.URL.Query()
+	q.Add("filter[startDate]", from.Format("2006-01-02"))
+	q.Add("filter[endDate]", to.Format("2006-01-02"))
+	q.Add("filter[employee]", fmt.Sprintf("%d", p.EmployeeID))
+	req.URL.RawQuery = q.Encode()
+
+	response, err := p.client.Do(req)
+	if err != nil {
+		log.Printf("cannot get workingtimes %v\n", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		log.Printf("Received %d response code %s", response.StatusCode, path)
+	}
+
+	dataRes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Printf("cannot read body %v\n", err)
+	}
+	//log.Println(string(dataRes))
+	var res PersonioPeriods
+	json.Unmarshal(dataRes, &res)
+	for k, _ := range res.Data {
+		res.Data[k].Attributes.Start = ConvertTime(res.Data[k].Attributes.Start)
+		res.Data[k].Attributes.End = ConvertTime(res.Data[k].Attributes.End)
+		res.Data[k].Attributes.CreatedAt = ConvertTime(res.Data[k].Attributes.CreatedAt)
+		res.Data[k].Attributes.UpdatedAt = ConvertTime(res.Data[k].Attributes.UpdatedAt)
+	}
+	//pretty.Println(res)
+	if !res.Success {
+		log.Printf("Error %s", res.Error.Message)
+	}
+	return &res
+}
+
+func ConvertTime(t time.Time) time.Time {
+	startTime := t
+	loc, _ := time.LoadLocation(time.Now().Location().String())
+	return time.Date(startTime.Year(), startTime.Month(), startTime.Day(), startTime.Hour(), startTime.Minute(), startTime.Second(), startTime.Nanosecond(), loc)
+}
