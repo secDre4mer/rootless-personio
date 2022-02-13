@@ -1,4 +1,4 @@
-module goPersonio
+module github.com/jorie1234/goPersonio
 
 go 1.17
 
