@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2023 Kalle Fagerberg
+#
+# SPDX-License-Identifier: CC0-1.0
+
+plugins:
+  - preset-lint-markdown-style-guide
+  - 
+    - lint-list-item-indent
+    - space
+  - 
+    - lint-ordered-list-marker-value
+    - ordered
+  - 
+    - lint-no-file-name-irregular-characters
+    - "\\.a-zA-Z0-9-_"
+
+  - gfm
+
+  - 
+    - stringify
+    - bullet: "-"
+      fences: true
+      listItemIndent: one
+      rule: "-"
+
+  - # Buggy in VS Code
+    - lint-table-cell-padding
+    - false
+  - # Buggy in VS Code
+    - lint-table-pipe-alignment
+    - false

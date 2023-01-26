@@ -1,0 +1,9 @@
+{
+  "remarkConfig": ".remarkrc.yml",
+  "devDependencies": {
+    "remark-cli": "^11.0.0",
+    "remark-gfm": "^3.0.1",
+    "remark-lint": "^9.1.1",
+    "remark-preset-lint-markdown-style-guide": "^5.1.2"
+  }
+}
