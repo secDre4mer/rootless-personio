@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2022 Jonas Riedel
+// SPDX-FileCopyrightText: 2023 Kalle Fagerberg
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package personio
 
 import (

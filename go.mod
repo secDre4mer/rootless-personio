@@ -1,11 +1,12 @@
-module github.com/jorie1234/goPersonio
+// SPDX-FileCopyrightText: 2023 Kalle Fagerberg
+//
+// SPDX-License-Identifier: CC0-1.0
+
+module github.com/jilleJr/rootless-personio
 
 go 1.17
 
 require (
-	github.com/google/uuid v1.3.0 // indirect
-	github.com/joho/godotenv v1.4.0 // indirect
-	github.com/kr/pretty v0.3.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
-	github.com/rogpeppe/go-internal v1.6.1 // indirect
+	github.com/google/uuid v1.3.0
+	github.com/joho/godotenv v1.4.0
 )
