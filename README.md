@@ -19,11 +19,21 @@ email and password.
 
 ## License
 
-This repository was created by [@jorie1234](https://github.com/jorie1234),
-but has been forked and is now maintained by Kalle Fagerberg
-([@jilleJr](https://github.com/jilleJr)).
+This repository was created by [@jorie1234](https://github.com/jorie1234)
+under the MIT license, but has been forked and is now maintained by
+Kalle Fagerberg ([@jilleJr](https://github.com/jilleJr)) under a new license.
 
 The code in this project is licensed under GNU General Public License v3.0
 or later ([LICENSES/GPL-3.0-or-later.txt](LICENSES/GPL-3.0-or-later.txt)),
 and documentation is licensed under Creative Commons Attribution 4.0
 International ([LICENSES/CC-BY-4.0.txt](LICENSES/CC-BY-4.0.txt)).
+
+## Credits
+
+Code in this repository is heavily inspired by:
+
+- the upstream work from [@jorie1234](https://github.com/jorie1234):
+  <https://github.com/jorie1234/goPersonio>
+
+- Eduardo Sánchez's ([@Whipshout](https://github.com/Whipshout))
+  Rust implementation: <https://github.com/Whipshout/personio_tool>
