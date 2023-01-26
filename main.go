@@ -57,7 +57,6 @@ func main() {
 		if err := p.Login(email, pass); err != nil {
 			log.Fatalf("Login: %s", err)
 		}
-
 	}
 
 	log.Printf("Logged in as employee %d", p.EmployeeID)

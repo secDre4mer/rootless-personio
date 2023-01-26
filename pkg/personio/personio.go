@@ -85,16 +85,19 @@ var loginTokenRegex = regexp.MustCompile(`name="_token"[^>]*value="([^"]*)"`)
 
 var (
 	ErrEmployeeIDNotFound = errors.New("employee ID not found")
+	UserAgent             = "Rootless-Personio-bot/0.1 (+https://github.com/jilleJr/rootless-personio)"
 )
 
 func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) error {
 	params := url.Values{}
-	params.Set("email", email)
-	params.Set("password", pass)
 	params.Set("_token", securityToken)
 	params.Set("token", email)
 
-	resp, err := c.http.PostForm(c.BaseURL+"/login/token-auth", params)
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/token-auth", strings.NewReader(params.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", UserAgent)
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
 	}
@@ -131,7 +134,11 @@ func (c *Client) Login(email, pass string) error {
 	params.Set("email", email)
 	params.Set("password", pass)
 
-	resp, err := c.http.PostForm(c.BaseURL+"/login/index", params)
+	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/index", strings.NewReader(params.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", UserAgent)
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
 	}
@@ -331,7 +338,7 @@ func (c *Client) GetWorkingTimes(from, to time.Time) (*PersonioPeriods, error) {
 
 func DoRequest[M any](client *http.Client, req *http.Request) (*M, error) {
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "go/rootless-personio")
+	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
