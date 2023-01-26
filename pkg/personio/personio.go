@@ -2,15 +2,31 @@
 // SPDX-FileCopyrightText: 2023 Kalle Fagerberg
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the
+// Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package personio
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -32,62 +48,128 @@ type WorkingTimes []struct {
 	ProjectID  interface{} `json:"project_id"`
 }
 
-type Personio struct {
-	Username   string
-	Password   string
-	baseURL    string
-	client     http.Client
+type Client struct {
+	BaseURL    string
+	http       *http.Client
 	EmployeeID int
 }
 
-func NewPersonio(baseURL, user, pwd string) *Personio {
-	p := &Personio{baseURL: baseURL, Username: user, Password: pwd}
-	options := cookiejar.Options{}
-	jar, err := cookiejar.New(&options)
+func New(baseURL string) (*Client, error) {
+	normalURL, err := NormalizeBaseURL(baseURL)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	p.client = http.Client{Jar: jar}
-	return p
+	jar, err := cookiejar.New(&cookiejar.Options{})
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		http:    &http.Client{Jar: jar},
+		BaseURL: normalURL,
+	}, nil
 }
 
-func (p *Personio) LoginToPersonio() {
+func NormalizeBaseURL(baseURL string) (string, error) {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return "", err
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	u.Path = strings.TrimSuffix(u.Path, "/")
+	return u.String(), nil
+}
+
+var employeeIDRegex = regexp.MustCompile(`window.EMPLOYEE\s*=\s*{\s*id:\s*(\d+),`)
+var loginTokenRegex = regexp.MustCompile(`name="_token"[^>]*value="([^"]*)"`)
+
+var (
+	ErrEmployeeIDNotFound = errors.New("employee ID not found")
+)
+
+func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) error {
 	params := url.Values{}
-	params.Add("email", p.Username)
-	params.Add("password", p.Password)
-	body := strings.NewReader(params.Encode())
+	params.Set("email", email)
+	params.Set("password", pass)
+	params.Set("_token", securityToken)
+	params.Set("token", email)
 
-	log.Println("Login to personio....")
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/login/index", p.baseURL), body)
+	resp, err := c.http.PostForm(c.BaseURL+"/login/token-auth", params)
 	if err != nil {
-		// handle err
+		return err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := p.client.PostForm(fmt.Sprintf("%slogin/index", p.baseURL), params)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Login response ", resp.StatusCode)
 
-	data, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	//log.Println(string(data)) // print whole html of user profile data
-	re, _ := regexp.Compile(`EMPLOYEE.*{.*id:\s*(\d+),`)
-	res := re.FindStringSubmatch(strings.ReplaceAll(string(data), "\n", ""))
-	if len(res) > 1 {
-		p.EmployeeID, _ = strconv.Atoi(res[1])
-		log.Printf("Found Employee ID %d", p.EmployeeID)
+
+	fmt.Println("##### Login with token, body start")
+	fmt.Println(string(body))
+	fmt.Println("##### Body end")
+
+	res := employeeIDRegex.FindSubmatch(body)
+	if res == nil {
+		return ErrEmployeeIDNotFound
 	}
 
+	return nil
 }
 
-func (p *Personio) SetWorkingTimes(from, to time.Time) {
-	path := p.baseURL + "api/v1/attendances/periods"
+type LoginTokenError struct {
+	SecurityToken string
+	Response      *http.Response
+}
 
-	type Payload []struct {
+func (e LoginTokenError) Error() string {
+	return fmt.Sprintf("token sent to email inbox, use with security token: %s", e.SecurityToken)
+}
+
+func (c *Client) Login(email, pass string) error {
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("password", pass)
+
+	resp, err := c.http.PostForm(c.BaseURL+"/login/index", params)
+	if err != nil {
+		return err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	idMatch := employeeIDRegex.FindSubmatch(body)
+	if idMatch == nil {
+		if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
+			tokenMatch := loginTokenRegex.FindSubmatch(body)
+			if tokenMatch != nil {
+				return LoginTokenError{
+					SecurityToken: string(tokenMatch[1]),
+					Response:      resp,
+				}
+			}
+		}
+
+		return ErrEmployeeIDNotFound
+	}
+
+	id, err := strconv.Atoi(string(idMatch[1]))
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrEmployeeIDNotFound, err)
+	}
+
+	c.EmployeeID = id
+	return nil
+}
+
+func (c *Client) SetWorkingTimes(from, to time.Time) error {
+	path := c.BaseURL + "/api/v1/attendances/periods"
+
+	payload := []struct {
 		ID         string      `json:"id"`
 		EmployeeID int         `json:"employee_id"`
 		Start      string      `json:"start"`
@@ -95,152 +177,83 @@ func (p *Personio) SetWorkingTimes(from, to time.Time) {
 		ActivityID interface{} `json:"activity_id"`
 		Comment    string      `json:"comment"`
 		ProjectID  interface{} `json:"project_id"`
-	}
-
-	data := Payload{
+	}{
 		{
 			ID:         uuid.New().String(),
-			EmployeeID: p.EmployeeID,
+			EmployeeID: c.EmployeeID,
 			Start:      from.Format("2006-01-02T15:04:05Z"),
 			End:        to.Format("2006-01-02T15:04:05Z"),
 		},
 	}
 
-	payloadBytes, _ := json.Marshal(data)
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode body: %w", err)
+	}
 	body := bytes.NewReader(payloadBytes)
 
-	req, _ := http.NewRequest("POST", path, body)
+	req, err := http.NewRequest("POST", path, body)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
-	//req.Header.Set("Accept", "application/json, text/plain, */*")
 
-	response, err := p.client.Do(req)
+	results, err := DoRequest[PersonioPeriodsResult](c.http, req)
 	if err != nil {
-		log.Printf("cannot post workingtimes %v\n", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != 200 {
-		log.Printf("Received %d response code %s", response.StatusCode, path)
+		return fmt.Errorf("HTTP request: %w", err)
 	}
 
-	dataRes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Printf("cannot read body %v\n", err)
-	}
-	//	log.Println(string(dataRes))
-	var res PersonioPeriodsResult
-	json.Unmarshal(dataRes, &res)
-	//	pretty.Println(res)
-	if !res.Success {
-		log.Printf("Error %s", res.Error.Message)
-	}
+	log.Printf("Got %d results", len(*results))
+	return nil
 }
 
-type PersonioPeriodsResult struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Details struct {
-			OverlappingExisting []struct {
-				ID         string `json:"id"`
-				Type       string `json:"type"`
-				Attributes struct {
-					LegacyID       interface{} `json:"legacy_id"`
-					LegacyStatus   string      `json:"legacy_status"`
-					Start          time.Time   `json:"start"`
-					End            time.Time   `json:"end"`
-					Comment        string      `json:"comment"`
-					LegacyBreakMin int         `json:"legacy_break_min"`
-					Origin         string      `json:"origin"`
-					CreatedAt      time.Time   `json:"created_at"`
-					UpdatedAt      time.Time   `json:"updated_at"`
-					DeletedAt      interface{} `json:"deleted_at"`
-				} `json:"attributes"`
-				Relationships struct {
-					Project struct {
-						Data struct {
-							ID interface{} `json:"id"`
-						} `json:"data"`
-					} `json:"project"`
-					Employee struct {
-						Data struct {
-							ID int `json:"id"`
-						} `json:"data"`
-					} `json:"employee"`
-					Company struct {
-						Data struct {
-							ID int `json:"id"`
-						} `json:"data"`
-					} `json:"company"`
-					AttendanceDay struct {
-						Data struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					} `json:"attendance_day"`
-					CreatedBy struct {
-						Data struct {
-							ID int `json:"id"`
-						} `json:"data"`
-					} `json:"created_by"`
-					UpdatedBy struct {
-						Data struct {
-							ID int `json:"id"`
-						} `json:"data"`
-					} `json:"updated_by"`
-				} `json:"relationships"`
-			} `json:"overlapping_existing"`
-		} `json:"details"`
-	} `json:"error"`
-
-	Data []struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			LegacyID       int         `json:"legacy_id"`
-			LegacyStatus   string      `json:"legacy_status"`
-			Start          time.Time   `json:"start"`
-			End            time.Time   `json:"end"`
-			Comment        string      `json:"comment"`
-			LegacyBreakMin int         `json:"legacy_break_min"`
-			Origin         string      `json:"origin"`
-			CreatedAt      time.Time   `json:"created_at"`
-			UpdatedAt      time.Time   `json:"updated_at"`
-			DeletedAt      interface{} `json:"deleted_at"`
-		} `json:"attributes"`
-		Relationships struct {
-			Project struct {
-				Data struct {
-					ID interface{} `json:"id"`
-				} `json:"data"`
-			} `json:"project"`
-			Employee struct {
-				Data struct {
-					ID int `json:"id"`
-				} `json:"data"`
-			} `json:"employee"`
-			Company struct {
-				Data struct {
-					ID int `json:"id"`
-				} `json:"data"`
-			} `json:"company"`
-			AttendanceDay struct {
-				Data struct {
-					ID string `json:"id"`
-				} `json:"data"`
-			} `json:"attendance_day"`
-			CreatedBy struct {
-				Data struct {
-					ID int `json:"id"`
-				} `json:"data"`
-			} `json:"created_by"`
-			UpdatedBy struct {
-				Data struct {
-					ID int `json:"id"`
-				} `json:"data"`
-			} `json:"updated_by"`
-		} `json:"relationships"`
-	} `json:"data"`
+type PersonioPeriodsResult []struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		LegacyID       int         `json:"legacy_id"`
+		LegacyStatus   string      `json:"legacy_status"`
+		Start          time.Time   `json:"start"`
+		End            time.Time   `json:"end"`
+		Comment        string      `json:"comment"`
+		LegacyBreakMin int         `json:"legacy_break_min"`
+		Origin         string      `json:"origin"`
+		CreatedAt      time.Time   `json:"created_at"`
+		UpdatedAt      time.Time   `json:"updated_at"`
+		DeletedAt      interface{} `json:"deleted_at"`
+	} `json:"attributes"`
+	Relationships struct {
+		Project struct {
+			Data struct {
+				ID interface{} `json:"id"`
+			} `json:"data"`
+		} `json:"project"`
+		Employee struct {
+			Data struct {
+				ID int `json:"id"`
+			} `json:"data"`
+		} `json:"employee"`
+		Company struct {
+			Data struct {
+				ID int `json:"id"`
+			} `json:"data"`
+		} `json:"company"`
+		AttendanceDay struct {
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		} `json:"attendance_day"`
+		CreatedBy struct {
+			Data struct {
+				ID int `json:"id"`
+			} `json:"data"`
+		} `json:"created_by"`
+		UpdatedBy struct {
+			Data struct {
+				ID int `json:"id"`
+			} `json:"data"`
+		} `json:"updated_by"`
+	} `json:"relationships"`
 }
 
 type PersonioPeriods struct {
@@ -268,8 +281,8 @@ type PersonioPeriods struct {
 	} `json:"data"`
 }
 
-func (p *Personio) GetWorkingTimes(from, to time.Time) *PersonioPeriods {
-	path := p.baseURL + "api/v1/attendances/periods"
+func (c *Client) GetWorkingTimes(from, to time.Time) (*PersonioPeriods, error) {
+	path := c.BaseURL + "api/v1/attendances/periods"
 
 	req, _ := http.NewRequest("GET", path, nil)
 	req.Header.Set("accept", "application/json")
@@ -279,10 +292,10 @@ func (p *Personio) GetWorkingTimes(from, to time.Time) *PersonioPeriods {
 	q := req.URL.Query()
 	q.Add("filter[startDate]", from.Format("2006-01-02"))
 	q.Add("filter[endDate]", to.Format("2006-01-02"))
-	q.Add("filter[employee]", fmt.Sprintf("%d", p.EmployeeID))
+	q.Add("filter[employee]", fmt.Sprintf("%d", c.EmployeeID))
 	req.URL.RawQuery = q.Encode()
 
-	response, err := p.client.Do(req)
+	response, err := c.http.Do(req)
 	if err != nil {
 		log.Printf("cannot get workingtimes %v\n", err)
 	}
@@ -299,21 +312,91 @@ func (p *Personio) GetWorkingTimes(from, to time.Time) *PersonioPeriods {
 	//log.Println(string(dataRes))
 	var res PersonioPeriods
 	json.Unmarshal(dataRes, &res)
-	for k, _ := range res.Data {
-		res.Data[k].Attributes.Start = ConvertTime(res.Data[k].Attributes.Start)
-		res.Data[k].Attributes.End = ConvertTime(res.Data[k].Attributes.End)
-		res.Data[k].Attributes.CreatedAt = ConvertTime(res.Data[k].Attributes.CreatedAt)
-		res.Data[k].Attributes.UpdatedAt = ConvertTime(res.Data[k].Attributes.UpdatedAt)
+	for k := range res.Data {
+		res.Data[k].Attributes.Start = res.Data[k].Attributes.Start.Local()
+		res.Data[k].Attributes.End = res.Data[k].Attributes.End.Local()
+		res.Data[k].Attributes.CreatedAt = res.Data[k].Attributes.CreatedAt.Local()
+		res.Data[k].Attributes.UpdatedAt = res.Data[k].Attributes.UpdatedAt.Local()
 	}
 	//pretty.Println(res)
 	if !res.Success {
-		log.Printf("Error %s", res.Error.Message)
+		return nil, Error{
+			Code:     res.Error.Code,
+			Message:  res.Error.Message,
+			Response: response,
+		}
 	}
-	return &res
+	return &res, nil
 }
 
-func ConvertTime(t time.Time) time.Time {
-	startTime := t
-	loc, _ := time.LoadLocation(time.Now().Location().String())
-	return time.Date(startTime.Year(), startTime.Month(), startTime.Day(), startTime.Hour(), startTime.Minute(), startTime.Second(), startTime.Nanosecond(), loc)
+func DoRequest[M any](client *http.Client, req *http.Request) (*M, error) {
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go/rootless-personio")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("cannot get workingtimes %v\n", err)
+	}
+	defer resp.Body.Close()
+
+	contentType := resp.Header.Get("Content-Type")
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return nil, fmt.Errorf("parse Content-Type header: %w", err)
+	}
+	if mediaType != "application/json" {
+		return nil, fmt.Errorf("expected JSON response, but got %q", mediaType)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
+	}
+
+	var typedBody struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code      int                 `json:"code"`
+			Message   string              `json:"message"`
+			ErrorData map[string][]string `json:"error_data"`
+		} `json:"error"`
+		Data *M `json:"data"`
+	}
+	if err := json.Unmarshal(body, &typedBody); err != nil {
+		return nil, fmt.Errorf("parse body: %w", err)
+	}
+
+	if !typedBody.Success {
+		return nil, Error{
+			Code:      typedBody.Error.Code,
+			Message:   typedBody.Error.Message,
+			ErrorData: typedBody.Error.ErrorData,
+			Response:  resp,
+		}
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("non-2xx status code: %s", resp.Status)
+	}
+
+	return typedBody.Data, nil
+}
+
+type Error struct {
+	Code      int
+	Message   string
+	ErrorData map[string][]string
+	Response  *http.Response
+}
+
+func (e Error) Error() string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "%s (code %d)", e.Message, e.Code)
+	for _, errs := range e.ErrorData {
+		for _, err := range errs {
+			sb.WriteByte(' ')
+			sb.WriteString(err)
+		}
+	}
+	return sb.String()
 }
