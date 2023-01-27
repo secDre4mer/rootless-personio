@@ -57,11 +57,11 @@ type Auth struct {
 	// SecurityToken is provided by this program when it fails to
 	// log in due to them detecting login via new device. You then need to
 	// run the program again but with the security token and email token.
-	SecurityToken string
+	SecurityToken string `yaml:"securityToken,omitempty" jsonschema:"oneof_type=string;null"`
 	// SecurityToken is sent by Personio to your email when it fails to
 	// log in due to them detecting login via new device. You then need to
 	// run the program again but with the security token and email token.
-	EmailToken string
+	EmailToken string `yaml:"emailToken,omitempty" jsonschema:"oneof_type=string;null"`
 }
 
 // Log contains configs for the command line logging, which compared

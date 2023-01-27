@@ -22,6 +22,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,6 +35,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 var cfg config.Config
@@ -93,6 +95,11 @@ func initConfig() {
 	viper.SetConfigName("personio")
 	viper.SetConfigType("yaml")
 
+	if err := registerConfigsInViper(cfg); err != nil {
+		log.Error().Msgf("Failed set config defaults: %s", err)
+		os.Exit(1)
+	}
+
 	files := []string{"/etc/rootless-personio/personio.yaml"}
 
 	if homePath, err := os.UserHomeDir(); err == nil {
@@ -122,6 +129,15 @@ func initConfig() {
 			Str("file", util.PrettyPath(file)).
 			Msg("Loaded configuration.")
 	}
+}
+
+func registerConfigsInViper(defaults config.Config) error {
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	viper.ReadConfig(bytes.NewReader(b))
+	return nil
 }
 
 func mergeInConfigFiles(files []string) ([]string, error) {

@@ -18,9 +18,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -35,6 +37,7 @@ var rawFlags = struct {
 	data     string
 	headers  []string
 	formData []string
+	noLogin  bool
 }{}
 
 var rawCmd = &cobra.Command{
@@ -44,7 +47,8 @@ var rawCmd = &cobra.Command{
 as a logged in user, and print the resulting JSON data.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		baseURL, err := getBaseURL(args[0])
+		urlArg := args[0]
+		baseURL, err := getBaseURL(urlArg)
 		if err != nil {
 			return err
 		}
@@ -54,16 +58,66 @@ as a logged in user, and print the resulting JSON data.`,
 		}
 		log.Debug().Str("baseUrl", client.BaseURL).Msg("Created valid client.")
 
+		if !rawFlags.noLogin {
+			var missingCredentials bool
+			if cfg.Auth.Email == "" {
+				missingCredentials = true
+				log.Error().Msg("Missing email! Must set auth.email config or PERSONIO_AUTH_EMAIL env var.")
+			}
+			if cfg.Auth.Password == "" {
+				missingCredentials = true
+				log.Error().Msg("Missing password! Must set auth.password config or PERSONIO_AUTH_PASSWORD env var.")
+			}
+			if missingCredentials {
+				return errors.New("missing credentials")
+			}
+			if err := client.Login(cfg.Auth.Email, cfg.Auth.Password); err != nil {
+				return err
+			}
+			log.Info().Int("employeeId", client.EmployeeID).
+				Msg("Successfully logged in.")
+		}
+
+		method := http.MethodGet
+
 		body, err := getDataFlagReader(rawFlags.data)
 		if err != nil {
 			return err
 		}
 		if body != nil {
+			method = http.MethodPost
 			defer body.Close()
 		}
 
+		if rawFlags.method != "" {
+			method = rawFlags.method
+		}
+
+		req, err := http.NewRequest(method, urlArg, body)
+		if err != nil {
+			return err
+		}
+		respModel, err := client.Raw(req)
+		if err != nil {
+			return err
+		}
+		b, err := json.MarshalIndent(respModel, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
 		return nil
 	},
+}
+
+func init() {
+	rootCmd.AddCommand(rawCmd)
+
+	rawCmd.Flags().StringVarP(&rawFlags.method, "method", "X", rawFlags.method, `Request method to use (default "POST" if with --data flag, otherwise "GET")`)
+	rawCmd.Flags().StringVarP(&rawFlags.data, "data", "d", rawFlags.data, `Request body ("@filename" for reading from file, or "@-" from STDIN)`)
+	rawCmd.Flags().StringArrayVarP(&rawFlags.headers, "header", "H", nil, `Add custom headers to request (format "Key: value")`)
+	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data (format "key=value")`)
+	rawCmd.Flags().BoolVar(&rawFlags.noLogin, "no-login", false, `Skip logging in before the request`)
 }
 
 func getBaseURL(urlArg string) (string, error) {
@@ -79,15 +133,6 @@ func getBaseURL(urlArg string) (string, error) {
 	}
 	u.Path = ""
 	return u.String(), nil
-}
-
-func init() {
-	rootCmd.AddCommand(rawCmd)
-
-	rawCmd.Flags().StringVarP(&rawFlags.method, "method", "X", rawFlags.method, `Request method to use (default "POST" if with --data flag, otherwise "GET")`)
-	rawCmd.Flags().StringVarP(&rawFlags.data, "data", "d", rawFlags.data, `Request body ("@filename" for reading from file, or "@-" from STDIN)`)
-	rawCmd.Flags().StringArrayVarP(&rawFlags.headers, "header", "H", nil, `Add custom headers to request (format "Key: value")`)
-	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data (format "key=value")`)
 }
 
 func getDataFlagReader(dataFlag string) (io.ReadCloser, error) {
