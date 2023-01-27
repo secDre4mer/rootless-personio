@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/jilleJr/rootless-personio/pkg/personio"
+	"github.com/jilleJr/rootless-personio/pkg/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -105,7 +106,11 @@ as a logged in user, and print the resulting JSON data.`,
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(b))
+		if colorized, err := util.ColorizeJSON(b); err == nil {
+			fmt.Println(string(colorized))
+		} else {
+			fmt.Println(string(b))
+		}
 		return nil
 	},
 }

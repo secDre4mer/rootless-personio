@@ -19,8 +19,10 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -73,4 +75,14 @@ func PrettyPath(s string) string {
 		}
 	}
 	return path
+}
+
+func ColorizeJSON(data []byte) ([]byte, error) {
+	jq := exec.Command("jq", ".", "--color-output")
+	jq.Stdin = bytes.NewReader(data)
+	colorized, err := jq.Output()
+	if err != nil {
+		return nil, err
+	}
+	return colorized, nil
 }

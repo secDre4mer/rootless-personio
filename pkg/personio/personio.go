@@ -30,6 +30,9 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -92,11 +95,19 @@ func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", UserAgent)
 
+	if log.Logger.GetLevel() <= zerolog.TraceLevel {
+		logRequest(req)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if log.Logger.GetLevel() <= zerolog.TraceLevel {
+		logRespone(resp)
+	}
 
 	contentType := resp.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
@@ -139,6 +150,31 @@ func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
 	}
 
 	return typedBody.Data, nil
+}
+
+func logRequest(req *http.Request) {
+	var sb strings.Builder
+	sb.WriteString("Request:")
+	fmt.Fprintf(&sb, "\n\t> %s %s %s", req.Method, req.URL.RequestURI(), req.Proto)
+	fmt.Fprintf(&sb, "\n\t> Host: %s", req.URL.Hostname())
+	for key, values := range req.Header {
+		for _, value := range values {
+			fmt.Fprintf(&sb, "\n\t> %s: %s", key, value)
+		}
+	}
+	log.Trace().Msg(sb.String())
+}
+
+func logRespone(resp *http.Response) {
+	var sb strings.Builder
+	sb.WriteString("Response:")
+	fmt.Fprintf(&sb, "\n\t< %s %s", resp.Proto, resp.Status)
+	for key, values := range resp.Header {
+		for _, value := range values {
+			fmt.Fprintf(&sb, "\n\t< %s: %s", key, value)
+		}
+	}
+	log.Trace().Msg(sb.String())
 }
 
 type Error struct {
