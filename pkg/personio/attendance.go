@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -30,7 +29,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *Client) GetWorkingTimes(from, to time.Time) (*PersonioPeriods, error) {
+func (c *Client) GetWorkingTimes(from, to time.Time) (PersonioPeriods, error) {
 	path := c.BaseURL + "api/v1/attendances/periods"
 
 	req, _ := http.NewRequest("GET", path, nil)
@@ -44,38 +43,18 @@ func (c *Client) GetWorkingTimes(from, to time.Time) (*PersonioPeriods, error) {
 	q.Add("filter[employee]", fmt.Sprintf("%d", c.EmployeeID))
 	req.URL.RawQuery = q.Encode()
 
-	response, err := c.http.Do(req)
+	res, err := DoRequest[PersonioPeriods](c.http, req)
 	if err != nil {
-		log.Printf("cannot get workingtimes %v\n", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != 200 {
-		log.Printf("Received %d response code %s", response.StatusCode, path)
+		return nil, err
 	}
 
-	dataRes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Printf("cannot read body %v\n", err)
+	for k := range res {
+		res[k].Attributes.Start = res[k].Attributes.Start.Local()
+		res[k].Attributes.End = res[k].Attributes.End.Local()
+		res[k].Attributes.CreatedAt = res[k].Attributes.CreatedAt.Local()
+		res[k].Attributes.UpdatedAt = res[k].Attributes.UpdatedAt.Local()
 	}
-	//log.Println(string(dataRes))
-	var res PersonioPeriods
-	json.Unmarshal(dataRes, &res)
-	for k := range res.Data {
-		res.Data[k].Attributes.Start = res.Data[k].Attributes.Start.Local()
-		res.Data[k].Attributes.End = res.Data[k].Attributes.End.Local()
-		res.Data[k].Attributes.CreatedAt = res.Data[k].Attributes.CreatedAt.Local()
-		res.Data[k].Attributes.UpdatedAt = res.Data[k].Attributes.UpdatedAt.Local()
-	}
-	//pretty.Println(res)
-	if !res.Success {
-		return nil, Error{
-			Code:     res.Error.Code,
-			Message:  res.Error.Message,
-			Response: response,
-		}
-	}
-	return &res, nil
+	return res, nil
 }
 
 type WorkingTimes []struct {
@@ -178,27 +157,19 @@ type PersonioPeriodsResult []struct {
 	} `json:"relationships"`
 }
 
-type PersonioPeriods struct {
-	Success bool `json:"success"`
-	Error   struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-
-	Data []struct {
-		ID         string `json:"id"`
-		Type       string `json:"type"`
-		Attributes struct {
-			Start           time.Time `json:"start"`
-			End             time.Time `json:"end"`
-			LegacyBreakMin  int       `json:"legacy_break_min"`
-			Comment         string    `json:"comment"`
-			PeriodType      string    `json:"period_type"`
-			CreatedAt       time.Time `json:"created_at"`
-			UpdatedAt       time.Time `json:"updated_at"`
-			EmployeeID      int       `json:"employee_id"`
-			CreatedBy       int       `json:"created_by"`
-			AttendanceDayID string    `json:"attendance_day_id"`
-		} `json:"attributes"`
-	} `json:"data"`
+type PersonioPeriods []struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		Start           time.Time `json:"start"`
+		End             time.Time `json:"end"`
+		LegacyBreakMin  int       `json:"legacy_break_min"`
+		Comment         string    `json:"comment"`
+		PeriodType      string    `json:"period_type"`
+		CreatedAt       time.Time `json:"created_at"`
+		UpdatedAt       time.Time `json:"updated_at"`
+		EmployeeID      int       `json:"employee_id"`
+		CreatedBy       int       `json:"created_by"`
+		AttendanceDayID string    `json:"attendance_day_id"`
+	} `json:"attributes"`
 }
