@@ -5,10 +5,6 @@
   "$defs": {
     "auth": {
       "properties": {
-        "url": {
-          "type": "string",
-          "format": "uri"
-        },
         "email": {
           "type": "string",
           "format": "email"
@@ -22,6 +18,10 @@
     },
     "config": {
       "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "auth": {
           "$ref": "#/$defs/auth"
         },
@@ -58,14 +58,14 @@
     "logLevel": {
       "type": "string",
       "enum": [
+        "trace",
         "debug",
         "info",
         "warn",
         "error",
         "fatal",
         "panic",
-        "disabled",
-        "trace"
+        "disabled"
       ],
       "title": "Logging level"
     },
