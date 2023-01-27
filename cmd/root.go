@@ -58,6 +58,9 @@ func Execute(defaultConfig config.Config) {
 	cfg = defaultConfig
 	initLogger() // set up logging first using default config
 
+	rootCmd.PersistentFlags().String("url", "", "Base URL used to access Personio")
+	rootCmd.PersistentFlags().String("auth.email", "", "Email used when logging in")
+	// Using pflag.Var here instead of pflag.String to get enum validation.
 	rootCmd.PersistentFlags().VarP(&cfg.Output, "output", "o", "Sets the output format")
 	rootCmd.PersistentFlags().Var(&cfg.Log.Level, "log.level", "Sets the logging level")
 	rootCmd.PersistentFlags().Var(&cfg.Log.Format, "log.format", "Sets the logging format")

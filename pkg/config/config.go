@@ -26,13 +26,13 @@ import (
 )
 
 type Config struct {
+	URL    string `jsonschema_extras:"format=uri"`
 	Auth   Auth
 	Output OutFormat
 	Log    Log
 }
 
 type Auth struct {
-	URL      string `jsonschema_extras:"format=uri"`
 	Email    string `jsonschema_extras:"format=email"`
 	Password string
 }
