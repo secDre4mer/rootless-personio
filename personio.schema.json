@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json",
+  "$ref": "#/$defs/config",
+  "$defs": {
+    "auth": {
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "password": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "config": {
+      "properties": {
+        "auth": {
+          "$ref": "#/$defs/auth"
+        },
+        "output": {
+          "$ref": "#/$defs/outFormat"
+        },
+        "log": {
+          "$ref": "#/$defs/log"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "log": {
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/logFormat"
+        },
+        "level": {
+          "$ref": "#/$defs/logLevel"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "logFormat": {
+      "type": "string",
+      "enum": [
+        "pretty",
+        "json"
+      ],
+      "title": "Logging format"
+    },
+    "logLevel": {
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error",
+        "fatal",
+        "panic",
+        "disabled",
+        "trace"
+      ],
+      "title": "Logging level"
+    },
+    "outFormat": {
+      "type": "string",
+      "enum": [
+        "pretty",
+        "json",
+        "yaml"
+      ],
+      "title": "Output format"
+    }
+  }
+}

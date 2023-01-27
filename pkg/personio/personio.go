@@ -54,6 +54,24 @@ func New(baseURL string) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) Raw(req *http.Request) (any, error) {
+	u, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse base URL: %w", err)
+	}
+
+	u.Fragment = req.URL.Fragment
+	u.RawFragment = req.URL.RawFragment
+	u.RawQuery = req.URL.RawQuery
+	u.ForceQuery = req.URL.ForceQuery
+	u.Path += req.URL.Path
+
+	reqClone := *req
+	reqClone.URL = u
+
+	return DoRequest[any](c.http, &reqClone)
+}
+
 func NormalizeBaseURL(baseURL string) (string, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {

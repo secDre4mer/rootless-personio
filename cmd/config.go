@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Kalle Fagerberg
 // SPDX-FileCopyrightText: 2022 Risk.Ident GmbH <contact@riskident.com>
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -16,25 +15,35 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cmd
 
 import (
-	"fmt"
+	"os"
 
-	"github.com/jilleJr/rootless-personio/cmd"
-	"github.com/jilleJr/rootless-personio/pkg/config"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-
-	_ "embed"
 )
 
-//go:embed personio.yaml
-var defaultConfigYAML []byte
+var configFlags = struct {
+	showPassword bool
+}{}
 
-func main() {
-	var defaultConfig config.Config
-	if err := yaml.Unmarshal(defaultConfigYAML, &defaultConfig); err != nil {
-		panic(fmt.Errorf("Parse embedded config: %w", err))
-	}
-	cmd.Execute(defaultConfig)
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Prints the parsed config",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		enc := yaml.NewEncoder(os.Stdout)
+		enc.SetIndent(2)
+		defer enc.Close()
+		if !configFlags.showPassword {
+			cfg.Auth.Password = "/redacted/"
+		}
+		return enc.Encode(cfg)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(configCmd)
+
+	configCmd.Flags().BoolVar(&configFlags.showPassword, "show-password", false, "Show the password in the output")
 }

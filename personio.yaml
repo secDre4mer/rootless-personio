@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2023 Kalle Fagerberg
+# SPDX-FileCopyrightText: 2022 Risk.Ident GmbH <contact@riskident.com>
+#
+# SPDX-License-Identifier: CC0-1.0
+---
+## To make this portable, change the ./personio.schema.json to:
+##   https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json
+# yaml-language-server: $schema=./personio.schema.json
+
+
+# The rootless-personio command line tool sends logs to STDERR
+# (e.g progress and debug log messages),
+# and outputs results to STDOUT (e.g HTTP request result).
+# This configs is specifically for the results to STDOUT.
+output: pretty # pretty | json | yaml
+
+# Console logging settings.
+# These are configs specifically for the logging to STDERR.
+log:
+  format: pretty # pretty | json
+  level: warn # trace | debug | info | warn | error | fatal | panic | disabled

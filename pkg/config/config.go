@@ -16,25 +16,44 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package config
 
 import (
-	"fmt"
+	"reflect"
 
-	"github.com/jilleJr/rootless-personio/cmd"
-	"github.com/jilleJr/rootless-personio/pkg/config"
-	"gopkg.in/yaml.v3"
-
-	_ "embed"
+	"github.com/invopop/jsonschema"
+	"github.com/jilleJr/rootless-personio/pkg/util"
 )
 
-//go:embed personio.yaml
-var defaultConfigYAML []byte
+type Config struct {
+	Auth   Auth
+	Output OutFormat
+	Log    Log
+}
 
-func main() {
-	var defaultConfig config.Config
-	if err := yaml.Unmarshal(defaultConfigYAML, &defaultConfig); err != nil {
-		panic(fmt.Errorf("Parse embedded config: %w", err))
+type Auth struct {
+	URL      string `jsonschema_extras:"format=uri"`
+	Email    string `jsonschema_extras:"format=email"`
+	Password string
+}
+
+type Log struct {
+	Format LogFormat
+	Level  LogLevel
+}
+
+type jsonSchemaInterface interface {
+	JSONSchema() *jsonschema.Schema
+}
+
+func Schema() *jsonschema.Schema {
+	r := new(jsonschema.Reflector)
+	r.KeyNamer = util.ToCamelCase
+	r.Namer = func(t reflect.Type) string {
+		return util.ToCamelCase(t.Name())
 	}
-	cmd.Execute(defaultConfig)
+	r.RequiredFromJSONSchemaTags = true
+	s := r.Reflect(&Config{})
+	s.ID = "https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json"
+	return s
 }

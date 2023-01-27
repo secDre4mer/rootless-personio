@@ -4,6 +4,12 @@
 
 GO_FILES = $(shell git ls-files "*.go")
 
+.PHONY: all
+all: personio.schema.json
+
+personio.schema.json: pkg/config/*.go cmd/config_schema.go
+	go run . config schema --file personio.schema.json --verbose
+
 .PHONY: test
 test:
 	go test ./...
