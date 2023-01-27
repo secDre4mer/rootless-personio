@@ -50,7 +50,7 @@ func main() {
 		if !ok {
 			log.Fatalln("Environment variable PERSONIO_EMAIL_TOKEN must be set when PERSONIO_SEC_TOKEN is set.")
 		}
-		if err := p.LoginWithToken(email, pass, emailToken, secToken); err != nil {
+		if err := p.UnlockAndLogin(email, pass, emailToken, secToken); err != nil {
 			log.Fatalf("Login with tokens: %s", err)
 		}
 

@@ -89,7 +89,14 @@ var (
 	UserAgent             = "Rootless-Personio-bot/0.1 (+https://github.com/jilleJr/rootless-personio)"
 )
 
-func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) error {
+func (c *Client) UnlockAndLogin(email, pass, emailToken, securityToken string) error {
+	if err := c.UnlockWithToken(emailToken, securityToken); err != nil {
+		return err
+	}
+	return c.Login(email, pass)
+}
+
+func (c *Client) UnlockWithToken(emailToken, securityToken string) error {
 	params := url.Values{}
 	params.Set("_token", strings.TrimSpace(securityToken))
 	params.Set("token", strings.TrimSpace(emailToken))
@@ -116,17 +123,16 @@ func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) e
 		}
 		return errors.New("did not unlock account, and found no error on page")
 	}
-
-	return c.Login(email, pass)
+	return nil
 }
 
-type LoginTokenError struct {
+type LockedAccountError struct {
 	SecurityToken string
 	Response      *http.Response
 }
 
-func (e LoginTokenError) Error() string {
-	return fmt.Sprintf("token sent to email inbox, use with security token: %s", e.SecurityToken)
+func (e LockedAccountError) Error() string {
+	return fmt.Sprintf("account locked; token sent to email inbox, use with security token: %s", e.SecurityToken)
 }
 
 func (c *Client) Login(email, pass string) error {
@@ -154,7 +160,7 @@ func (c *Client) Login(email, pass string) error {
 		if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
 			tokenMatch := loginTokenRegex.FindSubmatch(body)
 			if tokenMatch != nil {
-				return LoginTokenError{
+				return LockedAccountError{
 					SecurityToken: string(tokenMatch[1]),
 					Response:      resp,
 				}
