@@ -82,6 +82,7 @@ func NormalizeBaseURL(baseURL string) (string, error) {
 
 var employeeIDRegex = regexp.MustCompile(`window.EMPLOYEE\s*=\s*{\s*id:\s*(\d+),`)
 var loginTokenRegex = regexp.MustCompile(`name="_token"[^>]*value="([^"]*)"`)
+var loginTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
 
 var (
 	ErrEmployeeIDNotFound = errors.New("employee ID not found")
@@ -90,8 +91,8 @@ var (
 
 func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) error {
 	params := url.Values{}
-	params.Set("_token", securityToken)
-	params.Set("token", email)
+	params.Set("_token", strings.TrimSpace(securityToken))
+	params.Set("token", strings.TrimSpace(emailToken))
 
 	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/token-auth", strings.NewReader(params.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -108,16 +109,15 @@ func (c *Client) LoginWithToken(email, pass, emailToken, securityToken string) e
 		log.Fatal(err)
 	}
 
-	fmt.Println("##### Login with token, body start")
-	fmt.Println(string(body))
-	fmt.Println("##### Body end")
-
-	res := employeeIDRegex.FindSubmatch(body)
-	if res == nil {
-		return ErrEmployeeIDNotFound
+	if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
+		errorMatch := loginTokenErrorRegex.FindSubmatch(body)
+		if errorMatch != nil {
+			return fmt.Errorf("error from page: %s", errorMatch[1])
+		}
+		return errors.New("did not unlock account, and found no error on page")
 	}
 
-	return nil
+	return c.Login(email, pass)
 }
 
 type LoginTokenError struct {
