@@ -18,6 +18,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 
@@ -66,5 +67,9 @@ func main() {
 		log.Fatalf("Get current employee: %s", err)
 	}
 
-	log.Printf("Current employee: %#v", me)
+	b, err := json.MarshalIndent(me, "    ", "  ")
+	if err != nil {
+		log.Fatalf("Marshal as JSON: %s", err)
+	}
+	log.Printf("Current employee:\n    %s", b)
 }
