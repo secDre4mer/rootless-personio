@@ -6,11 +6,25 @@
     "auth": {
       "properties": {
         "email": {
-          "type": "string",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "format": "email"
         },
         "password": {
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -18,8 +32,15 @@
     },
     "config": {
       "properties": {
-        "url": {
-          "type": "string",
+        "baseUrl": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "format": "uri"
         },
         "auth": {

@@ -7,6 +7,11 @@
 ##   https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json
 # yaml-language-server: $schema=./personio.schema.json
 
+# Base URL for accessing Personio. Trailing slash is optional.
+baseUrl: # https://example.personio.de
+auth:
+  email: # firstname.lastname@example.com
+  password: # SuperSecretPassword1234
 
 # The rootless-personio command line tool sends logs to STDERR
 # (e.g progress and debug log messages),

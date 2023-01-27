@@ -67,8 +67,8 @@ as a logged in user, and print the resulting JSON data.`,
 }
 
 func getBaseURL(urlArg string) (string, error) {
-	if cfg.URL != "" {
-		return cfg.URL, nil
+	if cfg.BaseURL != "" {
+		return cfg.BaseURL, nil
 	}
 	u, err := url.Parse(urlArg)
 	if err != nil {

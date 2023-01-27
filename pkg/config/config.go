@@ -26,15 +26,15 @@ import (
 )
 
 type Config struct {
-	URL    string `jsonschema_extras:"format=uri"`
-	Auth   Auth
-	Output OutFormat
-	Log    Log
+	BaseURL string `yaml:"baseUrl" jsonschema:"oneof_type=string;null" jsonschema_extras:"format=uri"`
+	Auth    Auth
+	Output  OutFormat
+	Log     Log
 }
 
 type Auth struct {
-	Email    string `jsonschema_extras:"format=email"`
-	Password string
+	Email    string `jsonschema:"oneof_type=string;null" jsonschema_extras:"format=email"`
+	Password string `jsonschema:"oneof_type=string;null"`
 }
 
 type Log struct {
