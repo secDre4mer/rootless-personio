@@ -120,7 +120,7 @@ func (c *Client) SetWorkingTimes(from, to time.Time) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	results, err := DoRequest[PersonioPeriodsResult](c.http, req)
+	results, err := DoRequest[*PersonioPeriodsResult](c.http, req)
 	if err != nil {
 		return fmt.Errorf("HTTP request: %w", err)
 	}

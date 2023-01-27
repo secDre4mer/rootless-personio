@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"net/http/cookiejar"
@@ -66,28 +65,30 @@ func NormalizeBaseURL(baseURL string) (string, error) {
 	return u.String(), nil
 }
 
-func DoRequest[M any](client *http.Client, req *http.Request) (*M, error) {
+func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
+	var zero M // only returned on fail
+
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", UserAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("cannot get workingtimes %v\n", err)
+		return zero, fmt.Errorf("HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	contentType := resp.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return nil, fmt.Errorf("parse Content-Type header: %w", err)
+		return zero, fmt.Errorf("parse Content-Type header: %w", err)
 	}
 	if mediaType != "application/json" {
-		return nil, fmt.Errorf("expected JSON response, but got %q", mediaType)
+		return zero, fmt.Errorf("expected JSON response, but got %q", mediaType)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
+		return zero, fmt.Errorf("read body: %w", err)
 	}
 
 	var typedBody struct {
@@ -97,14 +98,14 @@ func DoRequest[M any](client *http.Client, req *http.Request) (*M, error) {
 			Message   string              `json:"message"`
 			ErrorData map[string][]string `json:"error_data"`
 		} `json:"error"`
-		Data *M `json:"data"`
+		Data M `json:"data"`
 	}
 	if err := json.Unmarshal(body, &typedBody); err != nil {
-		return nil, fmt.Errorf("parse body: %w", err)
+		return zero, fmt.Errorf("parse body: %w", err)
 	}
 
 	if !typedBody.Success {
-		return nil, Error{
+		return zero, Error{
 			Code:      typedBody.Error.Code,
 			Message:   typedBody.Error.Message,
 			ErrorData: typedBody.Error.ErrorData,
@@ -113,7 +114,7 @@ func DoRequest[M any](client *http.Client, req *http.Request) (*M, error) {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("non-2xx status code: %s", resp.Status)
+		return zero, fmt.Errorf("non-2xx status code: %s", resp.Status)
 	}
 
 	return typedBody.Data, nil

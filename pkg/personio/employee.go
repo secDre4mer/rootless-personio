@@ -60,7 +60,7 @@ func (c *Client) GetEmployeeData(id int) (*Employee, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	employee, err := DoRequest[Employee](c.http, req)
+	employee, err := DoRequest[*Employee](c.http, req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request: %w", err)
 	}
