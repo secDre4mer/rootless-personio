@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jilleJr/rootless-personio/pkg/config"
 	"github.com/jilleJr/rootless-personio/pkg/util"
@@ -81,6 +82,7 @@ func init() {
 func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("PERSONIO") // implicit underscore delimiter
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	viper.SetConfigName("personio")
 	viper.SetConfigType("yaml")
