@@ -25,7 +25,15 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// LogLevel is an enum of different log levels / severities.
+//
+// This is just a wrapper around the [zerolog.Level] type,
+// where all the different enum values are defined.
 type LogLevel zerolog.Level
+
+// LogLevelDefault is the default log format.
+// Used in the [LogLevel.JSONSchema] method.
+var LogLevelDefault = LogLevel(zerolog.WarnLevel)
 
 func _() {
 	// Ensure the type implements the interfaces
@@ -35,18 +43,16 @@ func _() {
 	var _ jsonSchemaInterface = l
 }
 
-func (l *LogLevel) UnmarshalText(text []byte) error {
-	return l.Set(string(text))
-}
-
-func (l LogLevel) MarshalText() ([]byte, error) {
-	return zerolog.Level(l).MarshalText()
-}
-
+// String implements [fmt.Stringer] and [pflag.Value].
+//
+// Used by cobra when showing the default value of a flag.
 func (l LogLevel) String() string {
 	return zerolog.Level(l).String()
 }
 
+// Set implements [pflag.Value].
+//
+// Used by cobra when setting the new value for a flag.
 func (l *LogLevel) Set(value string) error {
 	lvl, err := zerolog.ParseLevel(value)
 	if err != nil {
@@ -56,10 +62,28 @@ func (l *LogLevel) Set(value string) error {
 	return nil
 }
 
+// Type implements [pflag.Value].
+//
+// Used by cobra when rendering the list of flags and their types.
 func (l *LogLevel) Type() string {
 	return "log-level"
 }
 
+// MarshalText implements [encoding.TextMarshaler].
+//
+// Used when printing YAML config files.
+func (l LogLevel) MarshalText() ([]byte, error) {
+	return zerolog.Level(l).MarshalText()
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+//
+// Used when parsing YAML config files.
+func (l *LogLevel) UnmarshalText(text []byte) error {
+	return l.Set(string(text))
+}
+
+// JSONSchema returns the custom JSON schema definition for this type.
 func (LogLevel) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type:  "string",
@@ -74,5 +98,6 @@ func (LogLevel) JSONSchema() *jsonschema.Schema {
 			LogLevel(zerolog.PanicLevel),
 			LogLevel(zerolog.Disabled),
 		},
+		Default: LogLevelDefault,
 	}
 }

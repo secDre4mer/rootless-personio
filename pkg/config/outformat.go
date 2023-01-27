@@ -26,8 +26,14 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// OutFormat is an enum of different output formats.
 type OutFormat string
 
+// OutFormatDefault is the default log format.
+// Used in the [OutFormat.JSONSchema] method.
+var OutFormatDefault = OutFormatPretty
+
+// Available [OutFormat] values.
 const (
 	OutFormatPretty OutFormat = "pretty"
 	OutFormatJSON   OutFormat = "json"
@@ -42,10 +48,16 @@ func _() {
 	var _ jsonSchemaInterface = f
 }
 
+// String implements [fmt.Stringer] and [pflag.Value].
+//
+// Used by cobra when showing the default value of a flag.
 func (f OutFormat) String() string {
 	return string(f)
 }
 
+// Set implements [pflag.Value].
+//
+// Used by cobra when setting the new value for a flag.
 func (f *OutFormat) Set(value string) error {
 	switch OutFormat(value) {
 	case OutFormatPretty:
@@ -60,14 +72,21 @@ func (f *OutFormat) Set(value string) error {
 	return nil
 }
 
+// Type implements [pflag.Value].
+//
+// Used by cobra when rendering the list of flags and their types.
 func (f *OutFormat) Type() string {
 	return "out-format"
 }
 
+// UnmarshalText implements [encoding.TextUnmarshaler].
+//
+// Used when parsing YAML config files.
 func (f *OutFormat) UnmarshalText(text []byte) error {
 	return f.Set(string(text))
 }
 
+// JSONSchema returns the custom JSON schema definition for this type.
 func (OutFormat) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type:  "string",
@@ -77,5 +96,6 @@ func (OutFormat) JSONSchema() *jsonschema.Schema {
 			OutFormatJSON,
 			OutFormatYAML,
 		},
+		Default: OutFormatDefault,
 	}
 }

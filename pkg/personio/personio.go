@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Package personio is the main client library for accessing Personio
+// as a non-admin user. Use the [New] function followed by [Client.Login]
+// to get started.
 package personio
 
 import (

@@ -25,8 +25,14 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// LogFormat is an enum of different log formats.
 type LogFormat string
 
+// LogFormatDefault is the default log format.
+// Used in the [LogFormat.JSONSchema] method.
+var LogFormatDefault = LogFormatPretty
+
+// Available [LogFormat] values.
 const (
 	LogFormatPretty LogFormat = "pretty"
 	LogFormatJSON   LogFormat = "json"
@@ -40,10 +46,16 @@ func _() {
 	var _ jsonSchemaInterface = f
 }
 
+// String implements [fmt.Stringer] and [pflag.Value].
+//
+// Used by cobra when showing the default value of a flag.
 func (f LogFormat) String() string {
 	return string(f)
 }
 
+// Set implements [pflag.Value].
+//
+// Used by cobra when setting the new value for a flag.
 func (f *LogFormat) Set(value string) error {
 	switch LogFormat(value) {
 	case LogFormatPretty:
@@ -56,14 +68,21 @@ func (f *LogFormat) Set(value string) error {
 	return nil
 }
 
+// Type implements [pflag.Value].
+//
+// Used by cobra when rendering the list of flags and their types.
 func (f *LogFormat) Type() string {
 	return "log-format"
 }
 
+// UnmarshalText implements [encoding.TextUnmarshaler].
+//
+// Used when parsing YAML config files.
 func (f *LogFormat) UnmarshalText(text []byte) error {
 	return f.Set(string(text))
 }
 
+// JSONSchema returns the custom JSON schema definition for this type.
 func (LogFormat) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type:  "string",
@@ -72,5 +91,6 @@ func (LogFormat) JSONSchema() *jsonschema.Schema {
 			LogFormatPretty,
 			LogFormatJSON,
 		},
+		Default: LogFormatDefault,
 	}
 }

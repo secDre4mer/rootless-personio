@@ -14,6 +14,7 @@
               "type": "null"
             }
           ],
+          "description": "Email is your account's login email address.",
           "format": "email"
         },
         "password": {
@@ -24,11 +25,21 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Password is your account's login password."
+        },
+        "securityToken": {
+          "type": "string",
+          "description": "SecurityToken is provided by this program when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the security token and email token."
+        },
+        "emailToken": {
+          "type": "string",
+          "description": "SecurityToken is sent by Personio to your email when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the security token and email token."
         }
       },
       "additionalProperties": false,
-      "type": "object"
+      "type": "object",
+      "description": "Auth contains configs for how the program should authenticate with Personio."
     },
     "config": {
       "properties": {
@@ -41,32 +52,38 @@
               "type": "null"
             }
           ],
+          "description": "BaseURL is the URL to your Personio instance.\nThis can be with or without the trailing slash.\n\nThe program with later append paths like /login/index\nand /api/v1/attendances/periods when invoking its HTTP\nrequests.\n\nAny query parameters and fragments will get removed.",
           "format": "uri"
         },
         "auth": {
           "$ref": "#/$defs/auth"
         },
         "output": {
-          "$ref": "#/$defs/outFormat"
+          "$ref": "#/$defs/outFormat",
+          "description": "Output is the format of the command line results.\nThis controls the format of the single command line\nresult output written to STDOUT."
         },
         "log": {
           "$ref": "#/$defs/log"
         }
       },
       "additionalProperties": false,
-      "type": "object"
+      "type": "object",
+      "description": "Config is the full configuration file."
     },
     "log": {
       "properties": {
         "format": {
-          "$ref": "#/$defs/logFormat"
+          "$ref": "#/$defs/logFormat",
+          "description": "Format is the way the program formats its logging line. The\n\"pretty\" option is meant for humans and is colored, while the\n\"json\" option is meant for easier parsing in logging management\nsystems like for example Kibana or Splunk."
         },
         "level": {
-          "$ref": "#/$defs/logLevel"
+          "$ref": "#/$defs/logLevel",
+          "description": "Level is the severity level to filter logs on, where \"trace\"\nis the lowest logging/severity level, and \"panic\" is the\nhighest. The program will only log messages that are equal\nseverity or higher than this value. You can also set this\nto \"disabled\" to turn of logging."
         }
       },
       "additionalProperties": false,
-      "type": "object"
+      "type": "object",
+      "description": "Log contains configs for the command line logging, which compared to the command line output, loggin is written to STDERR and contains small status reports, and is mostly used for debugging."
     },
     "logFormat": {
       "type": "string",
@@ -74,7 +91,8 @@
         "pretty",
         "json"
       ],
-      "title": "Logging format"
+      "title": "Logging format",
+      "default": "pretty"
     },
     "logLevel": {
       "type": "string",
@@ -88,7 +106,8 @@
         "panic",
         "disabled"
       ],
-      "title": "Logging level"
+      "title": "Logging level",
+      "default": "warn"
     },
     "outFormat": {
       "type": "string",
@@ -97,7 +116,8 @@
         "json",
         "yaml"
       ],
-      "title": "Output format"
+      "title": "Output format",
+      "default": "pretty"
     }
   }
 }

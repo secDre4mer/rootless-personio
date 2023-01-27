@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Package config contains the configuration data structs and flag types
+// used in the command line tool.
 package config
 
 import (
@@ -25,34 +27,80 @@ import (
 	"github.com/jilleJr/rootless-personio/pkg/util"
 )
 
+// Config is the full configuration file.
 type Config struct {
+	// BaseURL is the URL to your Personio instance.
+	// This can be with or without the trailing slash.
+	//
+	// The program with later append paths like /login/index
+	// and /api/v1/attendances/periods when invoking its HTTP
+	// requests.
+	//
+	// Any query parameters and fragments will get removed.
 	BaseURL string `yaml:"baseUrl" jsonschema:"oneof_type=string;null" jsonschema_extras:"format=uri"`
 	Auth    Auth
-	Output  OutFormat
-	Log     Log
+	// Output is the format of the command line results.
+	// This controls the format of the single command line
+	// result output written to STDOUT.
+	Output OutFormat
+	Log    Log
 }
 
+// Auth contains configs for how the program should authenticate
+// with Personio.
 type Auth struct {
-	Email    string `jsonschema:"oneof_type=string;null" jsonschema_extras:"format=email"`
+	// Email is your account's login email address.
+	Email string `jsonschema:"oneof_type=string;null" jsonschema_extras:"format=email"`
+	// Password is your account's login password.
 	Password string `jsonschema:"oneof_type=string;null"`
+
+	// SecurityToken is provided by this program when it fails to
+	// log in due to them detecting login via new device. You then need to
+	// run the program again but with the security token and email token.
+	SecurityToken string
+	// SecurityToken is sent by Personio to your email when it fails to
+	// log in due to them detecting login via new device. You then need to
+	// run the program again but with the security token and email token.
+	EmailToken string
 }
 
+// Log contains configs for the command line logging, which compared
+// to the command line output, loggin is written to STDERR and contains
+// small status reports, and is mostly used for debugging.
 type Log struct {
+	// Format is the way the program formats its logging line. The
+	// "pretty" option is meant for humans and is colored, while the
+	// "json" option is meant for easier parsing in logging management
+	// systems like for example Kibana or Splunk.
 	Format LogFormat
-	Level  LogLevel
+	// Level is the severity level to filter logs on, where "trace"
+	// is the lowest logging/severity level, and "panic" is the
+	// highest. The program will only log messages that are equal
+	// severity or higher than this value. You can also set this
+	// to "disabled" to turn of logging.
+	Level LogLevel
 }
 
 type jsonSchemaInterface interface {
 	JSONSchema() *jsonschema.Schema
 }
 
-func Schema() *jsonschema.Schema {
+// Schema returns the JSON schema for the [Config] struct.
+//
+// Supports optionally supplying the source directory path,
+// which can point to the Go module directory, and will then
+// use the comments from the source code as descriptions in
+// the resulting schema.
+func Schema(sourceDir string) *jsonschema.Schema {
 	r := new(jsonschema.Reflector)
 	r.KeyNamer = util.ToCamelCase
 	r.Namer = func(t reflect.Type) string {
 		return util.ToCamelCase(t.Name())
 	}
 	r.RequiredFromJSONSchemaTags = true
+	if sourceDir != "" {
+		r.AddGoComments("github.com/jilleJr/rootless-personio", sourceDir)
+	}
 	s := r.Reflect(&Config{})
 	s.ID = "https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json"
 	return s

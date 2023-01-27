@@ -8,7 +8,7 @@ GO_FILES = $(shell git ls-files "*.go")
 all: personio.schema.json
 
 personio.schema.json: pkg/config/*.go cmd/config_schema.go
-	go run . config schema --file personio.schema.json --verbose
+	go run . config schema --file personio.schema.json --source ./ --verbose=3
 
 .PHONY: test
 test:

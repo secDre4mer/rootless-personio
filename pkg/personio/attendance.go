@@ -30,7 +30,7 @@ import (
 )
 
 func (c *Client) GetWorkingTimes(from, to time.Time) (PersonioPeriods, error) {
-	path := c.BaseURL + "api/v1/attendances/periods"
+	path := c.BaseURL + "/api/v1/attendances/periods"
 
 	req, _ := http.NewRequest("GET", path, nil)
 	req.Header.Set("accept", "application/json")

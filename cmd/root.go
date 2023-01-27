@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License along
 // with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Package cmd is the command line implementation, defining all the
+// different subcommands and flags, before directing the code flow
+// to the other packages for the business logic.
 package cmd
 
 import (

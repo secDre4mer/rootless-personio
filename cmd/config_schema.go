@@ -29,6 +29,7 @@ import (
 
 var configSchemaFlags = struct {
 	file     string
+	source   string
 	indented bool
 }{
 	file:     "-",
@@ -40,7 +41,7 @@ var configSchemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "Prints the JSON schema for the config file",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s := config.Schema()
+		s := config.Schema(configSchemaFlags.source)
 		data, err := marshalJSON(s, configSchemaFlags.indented)
 		if err != nil {
 			return err
@@ -75,4 +76,5 @@ func init() {
 
 	configSchemaCmd.Flags().BoolVarP(&configSchemaFlags.indented, "indent", "i", configSchemaFlags.indented, "Print indented output")
 	configSchemaCmd.Flags().StringVarP(&configSchemaFlags.file, "file", "f", configSchemaFlags.file, `Write output to file, or "-" to write to console`)
+	configSchemaCmd.Flags().StringVar(&configSchemaFlags.source, "source", configSchemaFlags.source, `Path to source code to include code comments as descriptions`)
 }
