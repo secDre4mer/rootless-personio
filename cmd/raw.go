@@ -18,10 +18,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -36,6 +36,7 @@ import (
 var rawFlags = struct {
 	method   string
 	data     string
+	json     string
 	headers  []string
 	formData []string
 	noLogin  bool
@@ -81,9 +82,17 @@ as a logged in user, and print the resulting JSON data.`,
 
 		method := http.MethodGet
 
-		body, err := getDataFlagReader(rawFlags.data)
+		// read from --json
+		body, err := getDataFlagReader(rawFlags.json)
 		if err != nil {
 			return err
+		}
+		if body == nil {
+			// read from --data
+			body, err = getDataFlagReader(rawFlags.data)
+			if err != nil {
+				return err
+			}
 		}
 		if body != nil {
 			method = http.MethodPost
@@ -98,21 +107,51 @@ as a logged in user, and print the resulting JSON data.`,
 		if err != nil {
 			return err
 		}
-		respModel, err := client.Raw(req)
-		if err != nil {
-			return err
+		for _, header := range rawFlags.headers {
+			key, value, ok := strings.Cut(header, ":")
+			if !ok {
+				return fmt.Errorf(`invalid header, expected "Key: value", got %q`, header)
+			}
+			// Adds header while maintaining the capitalization
+			req.Header[key] = append(req.Header[key], strings.TrimPrefix(value, " "))
 		}
-		b, err := json.MarshalIndent(respModel, "", "  ")
-		if err != nil {
-			return err
-		}
-		if colorized, err := util.ColorizeJSON(b); err == nil {
-			fmt.Println(string(colorized))
+
+		var resp *http.Response
+		var respErr error
+		if rawFlags.json != "" {
+			resp, respErr = client.RawJSON(req)
 		} else {
-			fmt.Println(string(b))
+			resp, respErr = client.Raw(req)
 		}
-		return nil
+		if resp != nil {
+			defer resp.Body.Close()
+			respBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("read response body: %w", err)
+			}
+
+			if responseIsJSON(resp) {
+				if colorized, err := util.ColorizeJSON(respBody); err == nil {
+					fmt.Println(string(colorized))
+				} else {
+					log.Debug().Err(err).Msg("Colorize JSON response.")
+					fmt.Println(string(respBody))
+				}
+			} else {
+				fmt.Println(string(respBody))
+			}
+		}
+		return respErr
 	},
+}
+
+func responseIsJSON(resp *http.Response) bool {
+	contentType := resp.Header.Get("Content-Type")
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+	return mediaType == "application/json"
 }
 
 func init() {
@@ -120,6 +159,7 @@ func init() {
 
 	rawCmd.Flags().StringVarP(&rawFlags.method, "method", "X", rawFlags.method, `Request method to use (default "POST" if with --data flag, otherwise "GET")`)
 	rawCmd.Flags().StringVarP(&rawFlags.data, "data", "d", rawFlags.data, `Request body ("@filename" for reading from file, or "@-" from STDIN)`)
+	rawCmd.Flags().StringVar(&rawFlags.json, "json", rawFlags.json, `Request JSON body, same as --data, but adds "Content-Type: application/json"`)
 	rawCmd.Flags().StringArrayVarP(&rawFlags.headers, "header", "H", nil, `Add custom headers to request (format "Key: value")`)
 	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data (format "key=value")`)
 	rawCmd.Flags().BoolVar(&rawFlags.noLogin, "no-login", false, `Skip logging in before the request`)

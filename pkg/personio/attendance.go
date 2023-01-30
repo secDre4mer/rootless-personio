@@ -29,15 +29,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// ----------------------
+
 func (c *Client) GetWorkingTimes(from, to time.Time) (PersonioPeriods, error) {
 	if err := c.assertLoggedIn(); err != nil {
-		return PersonioPeriods{}, err
+		return nil, err
 	}
 
-	path := c.BaseURL + "/api/v1/attendances/periods"
-
-	req, _ := http.NewRequest("GET", path, nil)
-	req.Header.Set("accept", "application/json")
+	req, _ := http.NewRequest("GET", "/api/v1/attendances/periods", nil)
 	//req.Header.Set("Accept", "application/json, text/plain, */*")
 
 	//?filter[startDate]=2022-01-31&filter[endDate]=2022-03-06&filter[employee]=991824
@@ -47,7 +46,11 @@ func (c *Client) GetWorkingTimes(from, to time.Time) (PersonioPeriods, error) {
 	q.Add("filter[employee]", fmt.Sprintf("%d", c.EmployeeID))
 	req.URL.RawQuery = q.Encode()
 
-	res, err := DoRequest[PersonioPeriods](c.http, req)
+	resp, err := c.RawJSON(req)
+	if err != nil {
+		return nil, err
+	}
+	res, err := ParseResponseJSON[PersonioPeriods](resp)
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +79,6 @@ func (c *Client) SetWorkingTimes(from, to time.Time) error {
 		return err
 	}
 
-	path := c.BaseURL + "/api/v1/attendances/periods"
-
 	payload := []struct {
 		ID         string      `json:"id"`
 		EmployeeID int         `json:"employee_id"`
@@ -101,15 +102,17 @@ func (c *Client) SetWorkingTimes(from, to time.Time) error {
 	}
 	body := bytes.NewReader(payloadBytes)
 
-	req, err := http.NewRequest("POST", path, body)
+	req, err := http.NewRequest("POST", "/api/v1/attendances/periods", body)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	results, err := DoRequest[*PersonioPeriodsResult](c.http, req)
+	resp, err := c.RawJSON(req)
 	if err != nil {
-		return fmt.Errorf("HTTP request: %w", err)
+		return err
+	}
+	results, err := ParseResponseJSON[*PersonioPeriodsResult](resp)
+	if err != nil {
+		return err
 	}
 
 	log.Printf("Got %d results", len(*results))

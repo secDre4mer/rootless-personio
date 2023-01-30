@@ -31,21 +31,21 @@ import (
 )
 
 var (
-	employeeIDRegex      = regexp.MustCompile(`window.EMPLOYEE\s*=\s*{\s*id:\s*(\d+),`)
-	loginTokenRegex      = regexp.MustCompile(`name="_token"[^>]*value="([^"]*)"`)
-	loginTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
+	employeeIDRegex     = regexp.MustCompile(`window.EMPLOYEE\s*=\s*{\s*id:\s*(\d+),`)
+	csrfTokenRegex      = regexp.MustCompile(`name="_token"[^>]*(?:value|content)="([^"]*)"`)
+	csrfTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
 )
 
-func (c *Client) UnlockAndLogin(email, pass, emailToken, securityToken string) error {
-	if err := c.UnlockWithToken(emailToken, securityToken); err != nil {
+func (c *Client) UnlockAndLogin(email, pass, emailToken, csrfToken string) error {
+	if err := c.UnlockWithToken(emailToken, csrfToken); err != nil {
 		return err
 	}
 	return c.Login(email, pass)
 }
 
-func (c *Client) UnlockWithToken(emailToken, securityToken string) error {
+func (c *Client) UnlockWithToken(emailToken, csrfToken string) error {
 	params := url.Values{}
-	params.Set("_token", strings.TrimSpace(securityToken))
+	params.Set("_token", strings.TrimSpace(csrfToken))
 	params.Set("token", strings.TrimSpace(emailToken))
 
 	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/token-auth", strings.NewReader(params.Encode()))
@@ -64,7 +64,7 @@ func (c *Client) UnlockWithToken(emailToken, securityToken string) error {
 	}
 
 	if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
-		errorMatch := loginTokenErrorRegex.FindSubmatch(body)
+		errorMatch := csrfTokenErrorRegex.FindSubmatch(body)
 		if errorMatch != nil {
 			return fmt.Errorf("error from page: %s", errorMatch[1])
 		}
@@ -93,18 +93,20 @@ func (c *Client) Login(email, pass string) error {
 		log.Fatal(err)
 	}
 
+	tokenMatch := csrfTokenRegex.FindSubmatch(body)
+	if tokenMatch == nil {
+		return ErrCSRFTokenNotFound
+	}
+	c.csrfToken = string(tokenMatch[1])
+
 	idMatch := employeeIDRegex.FindSubmatch(body)
 	if idMatch == nil {
 		if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
-			tokenMatch := loginTokenRegex.FindSubmatch(body)
-			if tokenMatch != nil {
-				return LockedAccountError{
-					SecurityToken: string(tokenMatch[1]),
-					Response:      resp,
-				}
+			return LockedAccountError{
+				CSRFToken: string(tokenMatch[1]),
+				Response:  resp,
 			}
 		}
-
 		return ErrEmployeeIDNotFound
 	}
 
@@ -118,10 +120,10 @@ func (c *Client) Login(email, pass string) error {
 }
 
 type LockedAccountError struct {
-	SecurityToken string
-	Response      *http.Response
+	CSRFToken string
+	Response  *http.Response
 }
 
 func (e LockedAccountError) Error() string {
-	return fmt.Sprintf("account locked; token sent to email inbox, use with security token: %s", e.SecurityToken)
+	return fmt.Sprintf("account locked; token sent to email inbox, use with CSRF token: %s", e.CSRFToken)
 }

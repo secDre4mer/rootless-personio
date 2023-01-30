@@ -22,6 +22,7 @@
 package personio
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,13 +43,16 @@ var (
 
 var (
 	ErrEmployeeIDNotFound = errors.New("employee ID not found")
+	ErrCSRFTokenNotFound  = errors.New("CSRF token not found")
 	ErrNotLoggedIn        = errors.New("not logged in")
+	ErrNon2xxStatusCode   = errors.New("non-2xx status code")
 )
 
 type Client struct {
 	BaseURL    string
 	http       *http.Client
 	EmployeeID int
+	csrfToken  string
 }
 
 func New(baseURL string) (*Client, error) {
@@ -66,7 +70,20 @@ func New(baseURL string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Raw(req *http.Request) (any, error) {
+func (c *Client) RawJSON(req *http.Request) (*http.Response, error) {
+	setHeaderDefault(req.Header, "Content-Type", "application/json")
+	setHeaderDefault(req.Header, "Accept", "application/json")
+	resp, err := c.Raw(req)
+	if errors.Is(err, ErrNon2xxStatusCode) && resp != nil {
+		_, parsedErr := ParseResponseJSON[any](resp)
+		if parsedErr != nil {
+			return resp, parsedErr
+		}
+	}
+	return resp, err
+}
+
+func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse base URL: %w", err)
@@ -78,10 +95,20 @@ func (c *Client) Raw(req *http.Request) (any, error) {
 	u.ForceQuery = req.URL.ForceQuery
 	u.Path += req.URL.Path
 
-	reqClone := *req
-	reqClone.URL = u
+	req.URL = u
+	setHeaderDefault(req.Header, "X-CSRF-Token", c.csrfToken)
+	setHeaderDefault(req.Header, "Accept", "application/json, text/plain, */*")
 
-	return DoRequest[any](c.http, &reqClone)
+	return DoRequest(c.http, req)
+}
+
+func setHeaderDefault(headers http.Header, key, value string) {
+	if headers.Get(key) == "" {
+		// Use map assignment instead of Header.Set, as we want to keep the
+		// header's casing that we specify.
+		// Important for X-CSRF-Token, as Personio ignores X-Csrf-Token
+		headers[key] = []string{value}
+	}
 }
 
 func (c *Client) assertLoggedIn() error {
@@ -102,25 +129,8 @@ func NormalizeBaseURL(baseURL string) (string, error) {
 	return u.String(), nil
 }
 
-func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
+func ParseResponseJSON[M any](resp *http.Response) (M, error) {
 	var zero M // only returned on fail
-
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", UserAgent)
-
-	if log.Logger.GetLevel() <= zerolog.TraceLevel {
-		logRequest(req)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return zero, fmt.Errorf("HTTP request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if log.Logger.GetLevel() <= zerolog.TraceLevel {
-		logRespone(resp)
-	}
 
 	contentType := resp.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
@@ -135,6 +145,8 @@ func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
 	if err != nil {
 		return zero, fmt.Errorf("read body: %w", err)
 	}
+	// Redefine body, so it can be read again, if needed by caller
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 
 	var typedBody struct {
 		Success bool `json:"success"`
@@ -158,11 +170,29 @@ func DoRequest[M any](client *http.Client, req *http.Request) (M, error) {
 		}
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return zero, fmt.Errorf("non-2xx status code: %s", resp.Status)
+	return typedBody.Data, nil
+}
+
+func DoRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+	setHeaderDefault(req.Header, "User-Agent", UserAgent)
+
+	if log.Logger.GetLevel() <= zerolog.TraceLevel {
+		logRequest(req)
 	}
 
-	return typedBody.Data, nil
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request: %w", err)
+	}
+
+	if log.Logger.GetLevel() <= zerolog.TraceLevel {
+		logRespone(resp)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return resp, fmt.Errorf("%w: %s", ErrNon2xxStatusCode, resp.Status)
+	}
+	return resp, nil
 }
 
 func logRequest(req *http.Request) {

@@ -28,13 +28,27 @@
           ],
           "description": "Password is your account's login password."
         },
-        "securityToken": {
-          "type": "string",
-          "description": "SecurityToken is provided by this program when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the security token and email token."
+        "cSRFToken": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "CSRFToken is provided by this program when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the CSRF (Cross-Site-Request-Forgery)\ntoken and email token."
         },
         "emailToken": {
-          "type": "string",
-          "description": "SecurityToken is sent by Personio to your email when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the security token and email token."
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "EmailToken is sent by Personio to your email when it fails to\nlog in due to them detecting login via new device. You then need to\nrun the program again but with the CSRF (Cross-Site-Request-Forgery)\ntoken and email token."
         }
       },
       "additionalProperties": false,
