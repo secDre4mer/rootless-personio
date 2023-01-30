@@ -30,6 +30,10 @@ import (
 )
 
 func (c *Client) GetWorkingTimes(from, to time.Time) (PersonioPeriods, error) {
+	if err := c.assertLoggedIn(); err != nil {
+		return PersonioPeriods{}, err
+	}
+
 	path := c.BaseURL + "/api/v1/attendances/periods"
 
 	req, _ := http.NewRequest("GET", path, nil)
@@ -68,6 +72,10 @@ type WorkingTimes []struct {
 }
 
 func (c *Client) SetWorkingTimes(from, to time.Time) error {
+	if err := c.assertLoggedIn(); err != nil {
+		return err
+	}
+
 	path := c.BaseURL + "/api/v1/attendances/periods"
 
 	payload := []struct {

@@ -23,6 +23,7 @@ package personio
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -37,6 +38,11 @@ import (
 
 var (
 	UserAgent = "Rootless-Personio-bot/0.1 (+https://github.com/jilleJr/rootless-personio)"
+)
+
+var (
+	ErrEmployeeIDNotFound = errors.New("employee ID not found")
+	ErrNotLoggedIn        = errors.New("not logged in")
 )
 
 type Client struct {
@@ -76,6 +82,13 @@ func (c *Client) Raw(req *http.Request) (any, error) {
 	reqClone.URL = u
 
 	return DoRequest[any](c.http, &reqClone)
+}
+
+func (c *Client) assertLoggedIn() error {
+	if c.EmployeeID == 0 {
+		return ErrNotLoggedIn
+	}
+	return nil
 }
 
 func NormalizeBaseURL(baseURL string) (string, error) {

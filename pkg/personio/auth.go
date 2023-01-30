@@ -31,10 +31,6 @@ import (
 )
 
 var (
-	ErrEmployeeIDNotFound = errors.New("employee ID not found")
-)
-
-var (
 	employeeIDRegex      = regexp.MustCompile(`window.EMPLOYEE\s*=\s*{\s*id:\s*(\d+),`)
 	loginTokenRegex      = regexp.MustCompile(`name="_token"[^>]*value="([^"]*)"`)
 	loginTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
