@@ -16,9 +16,22 @@ where you get access to the sensitive information of all the employees in your
 company.
 
 Instead, this package uses a different API: the same API as your web browser.
-
 This is done by pretending to be a browser and logging in normally using
 email and password.
+
+## About this repo
+
+Thanks to the [new EU ruling](https://www.shrm.org/resourcesandtools/hr-topics/global-hr/pages/eu-mandatory-time-tracking.aspx),
+time tracking is now even more mandatory than it was before. Some companies,
+like where I work, have first now started enforcing time tracking.
+
+Initially this didn't bother me though, as I've been tracking my time for years
+on my own. But now we must start reporting our tracked time to our HR system:
+Personio.
+
+So that sparked me to somehow access Personio's API, because I do NOT want to
+sit there and manually transfer the tracked time via that slow
+(albeit not the slowest) HR web interface.
 
 ## CLI
 
