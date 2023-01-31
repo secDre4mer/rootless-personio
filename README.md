@@ -66,6 +66,68 @@ Flags:
 Use "rootless-personio [command] --help" for more information about a command.
 ```
 
+#### Update attendance (time tracking)
+
+You need to specify your attendance periods as a JSON stream in a JSON file,
+for example:
+
+```json
+{
+  "start": "2023-01-18T08:00:00Z",
+  "end": "2023-01-18T12:00:00Z",
+  "comment": "Work before lunch",
+  "period_type": "work"
+}
+{
+  "start": "2023-01-18T12:00:00Z",
+  "end": "2023-01-18T13:00:00Z",
+  "comment": "Lunch break",
+  "period_type": "break"
+}
+{
+  "start": "2023-01-18T13:00:00Z",
+  "end": "2023-01-18T17:00:00Z",
+  "comment": "Work after lunch",
+  "period_type": "work"
+}
+```
+
+Then let `rootless-personio` update your attendance periods by running the
+following command:
+
+```sh
+rootless-personio attendance set --file file-with-stream.json
+```
+
+> By "JSON stream", I mean where the JSON objects are defined one after
+> each other, instead of wrapping all objects in a big array.
+>
+> If you have your attendance periods in an array, you can convert it into
+> a JSON stream with the following [`jq`](http://stedolan.github.io/jq/)
+> command:
+>
+> ```sh
+> jq '.[]' file-with-array.json > file-with-stream.json
+> ```
+
+This operation can be combined with other time-tracking tools, such as
+[dinkur](https://github.com/dinkur/dinkur), as long as you figure out how
+to export your time tracking data, and reshape it to look like the above JSON:
+
+```sh
+dinkur ls -r all -o json \
+  | jq '.[] | .comment=.name | del(.id, .createdAt, .updatedAt, .name)' \
+  | rootless-personio attendance set -f -
+```
+
+Or something like this, if you're using [timetrap](https://github.com/samg/timetrap):
+
+```sh
+timetrap display --format json \
+  | jq '.[] | .comment=.note | del(.id, .sheet, .note)' \
+  | rootless-personio attendance set -f -
+```
+
 ### Configuration
 
 The CLI is configured via YAML files.
