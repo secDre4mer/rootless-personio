@@ -159,7 +159,7 @@ func init() {
 
 	rawCmd.Flags().StringVarP(&rawFlags.method, "method", "X", rawFlags.method, `Request method to use (default "POST" if with --data flag, otherwise "GET")`)
 	rawCmd.Flags().StringVarP(&rawFlags.data, "data", "d", rawFlags.data, `Request body ("@filename" for reading from file, or "@-" from STDIN)`)
-	rawCmd.Flags().StringVar(&rawFlags.json, "json", rawFlags.json, `Request JSON body, same as --data, but adds "Content-Type: application/json"`)
+	rawCmd.Flags().StringVar(&rawFlags.json, "json", rawFlags.json, `Request JSON body, same as --data, but sends and expects "Content-Type: application/json"`)
 	rawCmd.Flags().StringArrayVarP(&rawFlags.headers, "header", "H", nil, `Add custom headers to request (format "Key: value")`)
 	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data (format "key=value")`)
 	rawCmd.Flags().BoolVar(&rawFlags.noLogin, "no-login", false, `Skip logging in before the request`)
