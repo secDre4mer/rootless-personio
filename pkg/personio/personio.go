@@ -73,14 +73,7 @@ func New(baseURL string) (*Client, error) {
 func (c *Client) RawJSON(req *http.Request) (*http.Response, error) {
 	setHeaderDefault(req.Header, "Content-Type", "application/json")
 	setHeaderDefault(req.Header, "Accept", "application/json")
-	resp, err := c.Raw(req)
-	if errors.Is(err, ErrNon2xxStatusCode) && resp != nil {
-		_, parsedErr := ParseResponseJSON[any](resp)
-		if parsedErr != nil {
-			return resp, parsedErr
-		}
-	}
-	return resp, err
+	return c.Raw(req)
 }
 
 func (c *Client) RawForm(req *http.Request) (*http.Response, error) {
@@ -101,10 +94,20 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	u.Path += req.URL.Path
 
 	req.URL = u
-	setHeaderDefault(req.Header, "X-CSRF-Token", c.csrfToken)
+	if c.csrfToken != "" {
+		setHeaderDefault(req.Header, "X-CSRF-Token", c.csrfToken)
+	}
 	setHeaderDefault(req.Header, "Accept", "application/json, text/plain, */*")
 
-	return DoRequest(c.http, req)
+	resp, err := DoRequest(c.http, req)
+
+	if errors.Is(err, ErrNon2xxStatusCode) && resp != nil {
+		_, parsedErr := ParseResponseJSON[any](resp)
+		if errors.As(parsedErr, &Error{}) {
+			return resp, parsedErr
+		}
+	}
+	return resp, err
 }
 
 func setHeaderDefault(headers http.Header, key, value string) {
@@ -234,7 +237,7 @@ type Error struct {
 
 func (e Error) Error() string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "%s (code %d)", e.Message, e.Code)
+	fmt.Fprintf(&sb, "Personio responsed with: %s (code %d)", e.Message, e.Code)
 	for _, errs := range e.ErrorData {
 		for _, err := range errs {
 			sb.WriteByte(' ')

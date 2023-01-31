@@ -53,6 +53,8 @@ func (c *Client) UnlockWithToken(emailToken, csrfToken string) error {
 		return err
 	}
 
+	c.csrfToken = csrfToken
+
 	resp, err := c.RawForm(req)
 	if err != nil {
 		return err
