@@ -82,17 +82,9 @@ as a logged in user, and print the resulting JSON data.`,
 
 		method := http.MethodGet
 
-		// read from --json
-		body, err := getDataFlagReader(rawFlags.json)
+		body, err := getDataFromRawFlags()
 		if err != nil {
 			return err
-		}
-		if body == nil {
-			// read from --data
-			body, err = getDataFlagReader(rawFlags.data)
-			if err != nil {
-				return err
-			}
 		}
 		if body != nil {
 			method = http.MethodPost
@@ -118,9 +110,12 @@ as a logged in user, and print the resulting JSON data.`,
 
 		var resp *http.Response
 		var respErr error
-		if rawFlags.json != "" {
+		switch {
+		case rawFlags.json != "":
 			resp, respErr = client.RawJSON(req)
-		} else {
+		case len(rawFlags.formData) > 0:
+			resp, respErr = client.RawForm(req)
+		default:
 			resp, respErr = client.Raw(req)
 		}
 		if resp != nil {
@@ -161,7 +156,7 @@ func init() {
 	rawCmd.Flags().StringVarP(&rawFlags.data, "data", "d", rawFlags.data, `Request body ("@filename" for reading from file, or "@-" from STDIN)`)
 	rawCmd.Flags().StringVar(&rawFlags.json, "json", rawFlags.json, `Request JSON body, same as --data, but sends and expects "Content-Type: application/json"`)
 	rawCmd.Flags().StringArrayVarP(&rawFlags.headers, "header", "H", nil, `Add custom headers to request (format "Key: value")`)
-	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data (format "key=value")`)
+	rawCmd.Flags().StringArrayVarP(&rawFlags.formData, "form", "F", nil, `Add multipart MIME data, and send "Content-Type: application/x-www-form-urlencoded" (format "key=value")`)
 	rawCmd.Flags().BoolVar(&rawFlags.noLogin, "no-login", false, `Skip logging in before the request`)
 }
 
@@ -178,6 +173,32 @@ func getBaseURL(urlArg string) (string, error) {
 	}
 	u.Path = ""
 	return u.String(), nil
+}
+
+func getDataFromRawFlags() (io.ReadCloser, error) {
+	// read from --json
+	jsonData, err := getDataFlagReader(rawFlags.json)
+	if err != nil || jsonData != nil {
+		return jsonData, err
+	}
+	// read from --data
+	binaryData, err := getDataFlagReader(rawFlags.data)
+	if err != nil || binaryData != nil {
+		return binaryData, err
+	}
+	// read from --form
+	if len(rawFlags.formData) > 0 {
+		var values url.Values
+		for _, pair := range rawFlags.formData {
+			key, value, ok := strings.Cut(pair, "=")
+			if !ok {
+				return nil, fmt.Errorf(`invalid form data, expected "key=value", got %q`, pair)
+			}
+			values.Add(key, value)
+		}
+		return io.NopCloser(strings.NewReader(values.Encode())), nil
+	}
+	return nil, nil
 }
 
 func getDataFlagReader(dataFlag string) (io.ReadCloser, error) {

@@ -83,6 +83,11 @@ func (c *Client) RawJSON(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
+func (c *Client) RawForm(req *http.Request) (*http.Response, error) {
+	setHeaderDefault(req.Header, "Content-Type", "application/x-www-form-urlencoded")
+	return c.Raw(req)
+}
+
 func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
