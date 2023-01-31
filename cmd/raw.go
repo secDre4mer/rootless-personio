@@ -29,6 +29,7 @@ import (
 
 	"github.com/jilleJr/rootless-personio/pkg/personio"
 	"github.com/jilleJr/rootless-personio/pkg/util"
+	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -125,7 +126,7 @@ as a logged in user, and print the resulting JSON data.`,
 				return fmt.Errorf("read response body: %w", err)
 			}
 
-			if responseIsJSON(resp) {
+			if responseIsJSON(resp) && isatty.IsTerminal(os.Stdout.Fd()) {
 				if colorized, err := util.ColorizeJSON(respBody); err == nil {
 					fmt.Println(string(colorized))
 				} else {
