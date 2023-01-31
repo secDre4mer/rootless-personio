@@ -143,10 +143,17 @@ as a logged in user, and print the resulting JSON data.`,
 func responseIsJSON(resp *http.Response) bool {
 	contentType := resp.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
+	switch {
+	case err != nil:
+		return false
+	case mediaType == "application/json":
+		return true
+	case strings.HasPrefix(mediaType, "application/") &&
+		strings.HasSuffix(mediaType, "+json"):
+		return true
+	default:
 		return false
 	}
-	return mediaType == "application/json"
 }
 
 func init() {
