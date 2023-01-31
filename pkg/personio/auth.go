@@ -48,11 +48,12 @@ func (c *Client) UnlockWithToken(emailToken, csrfToken string) error {
 	params.Set("_token", strings.TrimSpace(csrfToken))
 	params.Set("token", strings.TrimSpace(emailToken))
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/token-auth", strings.NewReader(params.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", UserAgent)
+	req, err := http.NewRequest(http.MethodPost, "/login/token-auth", strings.NewReader(params.Encode()))
+	if err != nil {
+		return err
+	}
 
-	resp, err := c.http.Do(req)
+	resp, err := c.RawForm(req)
 	if err != nil {
 		return err
 	}
@@ -78,11 +79,12 @@ func (c *Client) Login(email, pass string) error {
 	params.Set("email", email)
 	params.Set("password", pass)
 
-	req, err := http.NewRequest(http.MethodPost, c.BaseURL+"/login/index", strings.NewReader(params.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", UserAgent)
+	req, err := http.NewRequest(http.MethodPost, "/login/index", strings.NewReader(params.Encode()))
+	if err != nil {
+		return err
+	}
 
-	resp, err := c.http.Do(req)
+	resp, err := c.RawForm(req)
 	if err != nil {
 		return err
 	}
