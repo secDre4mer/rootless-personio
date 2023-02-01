@@ -252,6 +252,11 @@ func (c *Client) GetDayUUID(date time.Time) (*uuid.UUID, error) {
 }
 
 func (c *Client) cacheDayIDs(days []CalendarDay, startDate, endDate time.Time) {
+	log.Debug().
+		Int("days", len(days)).
+		Time("start", startDate).
+		Time("end", endDate).
+		Msg("Caching UUIDs for days.")
 	// Cache known days
 	for _, day := range days {
 		// must clone the var so we don't take ref of the for loop var
@@ -267,6 +272,8 @@ func (c *Client) cacheDayIDs(days []CalendarDay, startDate, endDate time.Time) {
 		dateString := date.Format(timeDateOnlyLayout)
 		if _, ok := c.dayIDCache[dateString]; !ok {
 			c.dayIDCache[dateString] = nil
+			log.Debug().Str("day", dateString).Str("uuid", "nil").
+				Msg("Cached undefined UUID for day.")
 		}
 	}
 }

@@ -111,7 +111,7 @@ func ColorizeYAML(data []byte) ([]byte, error) {
 }
 
 func TimeFullMonth(date time.Time) (time.Time, time.Time) {
-	year, month, _ := time.Now().Date()
+	year, month, _ := date.Date()
 	return time.Date(year, month, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC)
 }
