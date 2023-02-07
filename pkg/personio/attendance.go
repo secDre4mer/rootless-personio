@@ -203,6 +203,25 @@ func (c *Client) SetAttendance(date time.Time, periods []Period) error {
 	return err
 }
 
+func (c *Client) DeleteAttendance(date time.Time) error {
+	if err := c.assertLoggedIn(); err != nil {
+		return err
+	}
+
+	dayID, err := c.GetOrNewDayUUID(date)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, "/api/v1/attendances/days/"+dayID.String()+"/periods", nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.RawJSON(req)
+	return err
+}
+
 // GetOrNewDayUUID will either lookup a day's ID (from cache or by querying
 // the API), or generate a new ID and store this new ID in cache.
 //
