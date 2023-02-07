@@ -31,8 +31,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const timeDateOnlyLayout = "2006-01-02"
-
 type AttendanceCalendar struct {
 	AttendanceRights         map[string]bool                  `json:"attendance_rights"`
 	EmployeeWorkingSchedules struct{}                         `json:"employee_working_schedules"`
@@ -107,8 +105,8 @@ func (c *Client) GetAttendanceCalendar(employeeID int, startDate, endDate time.T
 	}
 
 	queryParams := url.Values{}
-	queryParams.Set("start_date", startDate.Format(timeDateOnlyLayout))
-	queryParams.Set("end_date", endDate.Format(timeDateOnlyLayout))
+	queryParams.Set("start_date", startDate.Format(time.DateOnly))
+	queryParams.Set("end_date", endDate.Format(time.DateOnly))
 
 	req, err := http.NewRequest("GET", fmt.Sprintf(
 		"/svc/attendance-bff/attendance-calendar/%d?%s",
@@ -236,7 +234,7 @@ func (c *Client) GetOrNewDayUUID(date time.Time) (uuid.UUID, error) {
 		return *id, nil
 	}
 	newID := uuid.New()
-	dateString := date.Format(timeDateOnlyLayout)
+	dateString := date.Format(time.DateOnly)
 	c.dayIDCache[dateString] = &newID
 	log.Debug().Str("day", dateString).Stringer("uuid", newID).
 		Msg("Randomized new UUID for day.")
@@ -252,7 +250,7 @@ func (c *Client) GetOrNewDayUUID(date time.Time) (uuid.UUID, error) {
 // After the remote lookup to the API, the client caches which days in the same
 // month that has undefined IDs.
 func (c *Client) GetDayUUID(date time.Time) (*uuid.UUID, error) {
-	dateString := date.Format(timeDateOnlyLayout)
+	dateString := date.Format(time.DateOnly)
 	// Cache contains nil values on "known to be undefined day IDs"
 	if id, ok := c.dayIDCache[dateString]; ok {
 		return id, nil
@@ -261,8 +259,8 @@ func (c *Client) GetDayUUID(date time.Time) (*uuid.UUID, error) {
 	cal, err := c.GetMyAttendanceCalendar(startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("get days for range %s-%s: %w",
-			startDate.Format(timeDateOnlyLayout),
-			endDate.Format(timeDateOnlyLayout),
+			startDate.Format(time.DateOnly),
+			endDate.Format(time.DateOnly),
 			err)
 	}
 
@@ -288,7 +286,7 @@ func (c *Client) cacheDayIDs(days []CalendarDay, startDate, endDate time.Time) {
 	// Set unknown days
 	loopEnd := endDate.Add(24 * time.Hour)
 	for date := startDate; date.Before(loopEnd); date = date.Add(24 * time.Hour) {
-		dateString := date.Format(timeDateOnlyLayout)
+		dateString := date.Format(time.DateOnly)
 		if _, ok := c.dayIDCache[dateString]; !ok {
 			c.dayIDCache[dateString] = nil
 			log.Debug().Str("day", dateString).Str("uuid", "nil").
