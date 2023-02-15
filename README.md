@@ -40,7 +40,7 @@ sit there and manually transfer the tracked time via that slow
 There is a CLI available that exposes some of the features found in the
 Go library.
 
-Currently, installing **requires that you have Go 1.19 (or later) installed.**
+Currently, installing **requires that you have Go 1.20 (or later) installed.**
 Then you can run the following:
 
 ```sh
