@@ -85,4 +85,3 @@ func prettyPrintCalendar(cal *personio.AttendanceCalendar, startDate, endDate ti
 	}
 	return nil
 }
-
