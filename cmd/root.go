@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/jilleJr/rootless-personio/pkg/config"
+	"github.com/jilleJr/rootless-personio/pkg/console"
 	"github.com/jilleJr/rootless-personio/pkg/personio"
 	"github.com/jilleJr/rootless-personio/pkg/util"
 	"github.com/mitchellh/mapstructure"
@@ -83,6 +84,7 @@ func Execute(defaultConfig config.Config) {
 }
 
 func init() {
+	rootCmd.SetUsageTemplate(console.UsageTemplate())
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&rootFlags.config, "config", rootFlags.config, "Config file (default is $HOME/.rootless-personio.yaml)")

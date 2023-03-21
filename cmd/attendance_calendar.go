@@ -20,7 +20,10 @@ package cmd
 import (
 	"time"
 
+	"github.com/jilleJr/rootless-personio/pkg/config"
+	"github.com/jilleJr/rootless-personio/pkg/console"
 	"github.com/jilleJr/rootless-personio/pkg/flagtype"
+	"github.com/jilleJr/rootless-personio/pkg/personio"
 	"github.com/jilleJr/rootless-personio/pkg/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -38,12 +41,11 @@ var attendanceCalendarCmd = &cobra.Command{
 		startDate := attendanceCalendarFlags.startDate.Time()
 		endDate := attendanceCalendarFlags.endDate.Time()
 
+		monthStart, monthEnd := util.TimeFullMonth(time.Now())
 		if !cmd.Flag("start").Changed {
-			monthStart, _ := util.TimeFullMonth(time.Now())
 			startDate = monthStart
 		}
 		if !cmd.Flag("end").Changed {
-			_, monthEnd := util.TimeFullMonth(time.Now())
 			endDate = monthEnd
 		}
 
@@ -60,6 +62,9 @@ var attendanceCalendarCmd = &cobra.Command{
 			return err
 		}
 
+		if cfg.Output == config.OutFormatPretty {
+			return prettyPrintCalendar(cal, startDate, endDate)
+		}
 		return printOutputJSONOrYAML(cal)
 	},
 }
@@ -70,3 +75,14 @@ func init() {
 	attendanceCalendarCmd.Flags().VarP(&attendanceCalendarFlags.startDate, "start", "s", "Start date to show (default first day this month)")
 	attendanceCalendarCmd.Flags().VarP(&attendanceCalendarFlags.endDate, "end", "e", "End date to show (default first day this month)")
 }
+
+func prettyPrintCalendar(cal *personio.AttendanceCalendar, startDate, endDate time.Time) error {
+	year, month, _ := startDate.Date()
+	date := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	for date.Before(endDate) {
+		console.PrintCalendarMonth(date, cal)
+		date = date.AddDate(0, 1, 0)
+	}
+	return nil
+}
+
