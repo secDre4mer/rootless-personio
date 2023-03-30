@@ -91,7 +91,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Show this help text")
 	rootCmd.PersistentFlags().CountVarP(&rootFlags.verbose, "verbose", "v", `Shows verbose logging (-v=info, -vv=debug, -vvv=trace)`)
 	rootCmd.PersistentFlags().BoolVarP(&rootFlags.quiet, "quiet", "q", false, `Disables logging (same as "--log.level disabled")`)
-	rootCmd.Flags().BoolVar(&rootFlags.noLogin, "no-login", false, `Skip logging in before the request`)
+	rootCmd.PersistentFlags().BoolVar(&rootFlags.noLogin, "no-login", false, `Skip logging in before the request`)
 }
 
 func initConfig() {
