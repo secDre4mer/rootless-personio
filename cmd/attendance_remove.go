@@ -34,7 +34,7 @@ var attendanceRemoveCmd = &cobra.Command{
 	Short:   "Clears attendance periods",
 	Long: `Clears (deletes) attendance periods for a specific day.
 
-Provide the date in format YYYY-MM-DD, e.g 2023-01-23 for Jan 1, 2023.
+Provide the date in format YYYY-MM-DD, e.g 2023-01-25 for Jan 25, 2023.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		date, err := time.Parse(time.DateOnly, args[0])
