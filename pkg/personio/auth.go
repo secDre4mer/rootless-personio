@@ -83,8 +83,22 @@ func (c *Client) Login(email, pass string) error {
 		return err
 	}
 
-	if _, err := c.RawForm(req); err != nil {
+	resp, err := c.RawForm(req)
+	if err != nil {
 		return err
+	}
+
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return fmt.Errorf("parse base URL: %w", err)
+	}
+
+	if resp.Request.URL.Host != baseURL.Host {
+		return fmt.Errorf("%w: want host %q, got %q", ErrUnexpectedRedirect, baseURL.Host, resp.Request.URL.Host)
+	}
+
+	if strings.TrimPrefix(resp.Request.URL.Path, "/") != "" {
+		return fmt.Errorf("%w: want path \"/\", got %q", ErrUnexpectedRedirect, resp.Request.URL.Path)
 	}
 
 	userActivity, err := c.getUserActivity()

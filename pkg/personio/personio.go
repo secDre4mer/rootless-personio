@@ -43,6 +43,7 @@ var (
 )
 
 var (
+	ErrUnexpectedRedirect = errors.New("unexpected redirect")
 	ErrEmployeeIDNotFound = errors.New("employee ID not found")
 	ErrCSRFTokenNotFound  = errors.New("CSRF token not found")
 	ErrNotLoggedIn        = errors.New("not logged in")
