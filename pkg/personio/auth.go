@@ -121,7 +121,7 @@ type userActivityVisitor struct {
 	EmploymentType      string `json:"employment_type"`        // ex: "internal"
 	HasReports          bool   `json:"has_reports"`            // ex: false
 	HasSupervisor       bool   `json:"has_supervisor"`         // ex: true
-	ID                  int    `json:"id"`                     // ex: 8234095
+	ID                  int    `json:"id"`                     // ex: 1234567
 	Role                string `json:"role"`                   // ex: "Employee"
 	Status              string `json:"status"`                 // ex: "active"
 	UserCreatedAt       string `json:"user_created_at"`        // ex: "2006-01-02 15:04:05"
