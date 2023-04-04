@@ -54,7 +54,6 @@ type Client struct {
 	BaseURL    string
 	http       *http.Client
 	EmployeeID int
-	csrfToken  string
 	dayIDCache map[string]*uuid.UUID
 }
 
@@ -72,6 +71,16 @@ func New(baseURL string) (*Client, error) {
 		BaseURL:    normalURL,
 		dayIDCache: make(map[string]*uuid.UUID),
 	}, nil
+}
+
+func (c *Client) csrfToken(u *url.URL) (string, bool) {
+	cookies := c.http.Jar.Cookies(u)
+	for _, cookie := range cookies {
+		if cookie.Name == "XSRF-TOKEN" {
+			return cookie.Value, true
+		}
+	}
+	return "", false
 }
 
 func (c *Client) RawJSON(req *http.Request) (*http.Response, error) {
@@ -98,8 +107,8 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	u.Path += req.URL.Path
 
 	req.URL = u
-	if c.csrfToken != "" {
-		setHeaderDefault(req.Header, "X-CSRF-Token", c.csrfToken)
+	if token, ok := c.csrfToken(req.URL); ok {
+		setHeaderDefault(req.Header, "X-CSRF-Token", token)
 	}
 	setHeaderDefault(req.Header, "Accept", "application/json, text/plain, */*")
 

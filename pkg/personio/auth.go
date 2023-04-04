@@ -33,24 +33,21 @@ var (
 	csrfTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
 )
 
-func (c *Client) UnlockAndLogin(email, pass, emailToken, csrfToken string) error {
-	if err := c.UnlockWithToken(emailToken, csrfToken); err != nil {
+func (c *Client) UnlockAndLogin(email, pass, emailToken string) error {
+	if err := c.UnlockWithToken(emailToken); err != nil {
 		return err
 	}
 	return c.Login(email, pass)
 }
 
-func (c *Client) UnlockWithToken(emailToken, csrfToken string) error {
+func (c *Client) UnlockWithToken(emailToken string) error {
 	params := url.Values{}
-	params.Set("_token", strings.TrimSpace(csrfToken))
 	params.Set("token", strings.TrimSpace(emailToken))
 
 	req, err := http.NewRequest(http.MethodPost, "/login/token-auth", strings.NewReader(params.Encode()))
 	if err != nil {
 		return err
 	}
-
-	c.csrfToken = csrfToken
 
 	resp, err := c.RawForm(req)
 	if err != nil {
