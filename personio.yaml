@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: CC0-1.0
 ---
 ## To make this portable, change the ./personio.schema.json to:
-##   https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json
+##   https://github.com/applejag/rootless-personio/raw/main/personio.schema.json
 # yaml-language-server: $schema=./personio.schema.json
 
 # Base URL for accessing Personio. Trailing slash is optional.

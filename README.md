@@ -6,8 +6,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # "Rootless" Personio API client
 
-[![REUSE status](https://api.reuse.software/badge/github.com/jilleJr/rootless-personio)](https://api.reuse.software/info/github.com/jilleJr/rootless-personio)
-[![Go Reference](https://pkg.go.dev/badge/github.com/jilleJr/rootless-personio/pkg/personio.svg)](https://pkg.go.dev/github.com/jilleJr/rootless-personio/pkg/personio)
+[![REUSE status](https://api.reuse.software/badge/github.com/applejag/rootless-personio)](https://api.reuse.software/info/github.com/applejag/rootless-personio)
+[![Go Reference](https://pkg.go.dev/badge/github.com/applejag/rootless-personio/pkg/personio.svg)](https://pkg.go.dev/github.com/applejag/rootless-personio/pkg/personio)
 
 Accessing [Personio's API](https://developer.personio.de/docs)
 requires API credentials [which does not scope to the employee level](https://developer.personio.de/discuss/634e4b08a3f8d80051c52cfe),
@@ -44,7 +44,7 @@ Currently, installing **requires that you have Go 1.20 (or later) installed.**
 Then you can run the following:
 
 ```sh
-go install github.com/jilleJr/rootless-personio@latest
+go install github.com/applejag/rootless-personio@latest
 ```
 
 ### CLI usage
@@ -192,14 +192,14 @@ To make use of it, add the following comment to the beginning of your
 config file:
 
 ```yaml
-# yaml-language-server: $schema=https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json
+# yaml-language-server: $schema=https://github.com/applejag/rootless-personio/raw/main/personio.schema.json
 ```
 
 ## License
 
 This repository was created by [@jorie1234](https://github.com/jorie1234)
 under the MIT license, but has been forked and is now maintained by
-Kalle Fagerberg ([@jilleJr](https://github.com/jilleJr)) under a new license.
+Kalle Fagerberg ([@applejag](https://github.com/applejag)) under a new license.
 
 The code in this project is licensed under GNU General Public License v3.0
 or later ([LICENSES/GPL-3.0-or-later.txt](LICENSES/GPL-3.0-or-later.txt)),

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json",
+  "$id": "https://github.com/applejag/rootless-personio/raw/main/personio.schema.json",
   "$ref": "#/$defs/config",
   "$defs": {
     "auth": {

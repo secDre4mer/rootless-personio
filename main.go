@@ -21,8 +21,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/jilleJr/rootless-personio/cmd"
-	"github.com/jilleJr/rootless-personio/pkg/config"
+	"github.com/applejag/rootless-personio/cmd"
+	"github.com/applejag/rootless-personio/pkg/config"
 	"gopkg.in/yaml.v3"
 
 	_ "embed"

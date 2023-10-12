@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jilleJr/rootless-personio/pkg/util"
+	"github.com/applejag/rootless-personio/pkg/util"
 	"github.com/rs/zerolog/log"
 )
 

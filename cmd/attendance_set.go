@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jilleJr/rootless-personio/pkg/personio"
+	"github.com/applejag/rootless-personio/pkg/personio"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"gopkg.in/typ.v4/slices"

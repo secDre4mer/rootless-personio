@@ -21,7 +21,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jilleJr/rootless-personio/pkg/personio"
+	"github.com/applejag/rootless-personio/pkg/personio"
 )
 
 func Example() {

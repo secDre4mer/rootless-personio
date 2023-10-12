@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jilleJr/rootless-personio/pkg/config"
+	"github.com/applejag/rootless-personio/pkg/config"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )

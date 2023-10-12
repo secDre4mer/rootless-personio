@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/jilleJr/rootless-personio/pkg/personio"
+	"github.com/applejag/rootless-personio/pkg/personio"
 	"github.com/mattn/go-colorable"
 	"gopkg.in/typ.v4"
 )

@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	UserAgent = "Rootless-Personio-bot/0.1 (+https://github.com/jilleJr/rootless-personio)"
+	UserAgent = "Rootless-Personio-bot/0.1 (+https://github.com/applejag/rootless-personio)"
 )
 
 var (

@@ -20,11 +20,11 @@ package cmd
 import (
 	"time"
 
-	"github.com/jilleJr/rootless-personio/pkg/config"
-	"github.com/jilleJr/rootless-personio/pkg/console"
-	"github.com/jilleJr/rootless-personio/pkg/flagtype"
-	"github.com/jilleJr/rootless-personio/pkg/personio"
-	"github.com/jilleJr/rootless-personio/pkg/util"
+	"github.com/applejag/rootless-personio/pkg/config"
+	"github.com/applejag/rootless-personio/pkg/console"
+	"github.com/applejag/rootless-personio/pkg/flagtype"
+	"github.com/applejag/rootless-personio/pkg/personio"
+	"github.com/applejag/rootless-personio/pkg/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )

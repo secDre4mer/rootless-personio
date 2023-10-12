@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/invopop/jsonschema"
-	"github.com/jilleJr/rootless-personio/pkg/util"
+	"github.com/applejag/rootless-personio/pkg/util"
 )
 
 // Config is the full configuration file.
@@ -112,9 +112,9 @@ func Schema(sourceDir string) *jsonschema.Schema {
 	}
 	r.RequiredFromJSONSchemaTags = true
 	if sourceDir != "" {
-		r.AddGoComments("github.com/jilleJr/rootless-personio", sourceDir)
+		r.AddGoComments("github.com/applejag/rootless-personio", sourceDir)
 	}
 	s := r.Reflect(&Config{})
-	s.ID = "https://github.com/jilleJr/rootless-personio/raw/main/personio.schema.json"
+	s.ID = "https://github.com/applejag/rootless-personio/raw/main/personio.schema.json"
 	return s
 }
