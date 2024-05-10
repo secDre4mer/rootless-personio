@@ -21,7 +21,7 @@ package personio
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -35,7 +35,7 @@ var (
 
 func (c *Client) UnlockAndLogin(email, pass, emailToken string) error {
 	if err := c.UnlockWithToken(emailToken); err != nil {
-		return err
+		return fmt.Errorf("unlock account: %w", err)
 	}
 	return c.Login(email, pass)
 }
@@ -54,7 +54,7 @@ func (c *Client) UnlockWithToken(emailToken string) error {
 		return err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -92,6 +92,10 @@ func (c *Client) Login(email, pass string) error {
 
 	if resp.Request.URL.Host != baseURL.Host {
 		return fmt.Errorf("%w: want host %q, got %q", ErrUnexpectedRedirect, baseURL.Host, resp.Request.URL.Host)
+	}
+
+	if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
+		return ErrUnlockRequired
 	}
 
 	if strings.TrimPrefix(resp.Request.URL.Path, "/") != "" {
@@ -160,13 +164,4 @@ type userActivityAccount struct {
 	PlanType                   string `json:"plan_type"`                    // ex: "professional"
 	PlanVersion                int    `json:"plan_version"`                 // ex: 5
 	TrialConversionDate        any    `json:"trial_conversion_date"`        // ex: null
-}
-
-type LockedAccountError struct {
-	CSRFToken string
-	Response  *http.Response
-}
-
-func (e LockedAccountError) Error() string {
-	return fmt.Sprintf("account locked; token sent to email inbox, use with CSRF token: %s", e.CSRFToken)
 }

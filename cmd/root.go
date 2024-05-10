@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/applejag/rootless-personio/pkg/config"
 	"github.com/applejag/rootless-personio/pkg/console"
 	"github.com/applejag/rootless-personio/pkg/personio"
@@ -232,11 +233,44 @@ func newLoggedInClient() (*personio.Client, error) {
 		return nil, errors.New("missing credentials")
 	}
 	if err := client.Login(cfg.Auth.Email, cfg.Auth.Password); err != nil {
+		if err := handleLoginError(client, err, cfg.Auth); err != nil {
+			return nil, err
+		}
 		return nil, err
 	}
 	log.Info().Int("employeeId", client.EmployeeID).
 		Msg("Successfully logged in.")
 	return client, nil
+}
+
+func handleLoginError(client *personio.Client, err error, auth config.Auth) error {
+	if !errors.Is(err, personio.ErrUnlockRequired) {
+		return err
+	}
+	log.Warn().Msg("Login confirmation required.\n" +
+		"\tPlease open your inbox and find the email named \"[Personio] Confirm login in your account\"\n" +
+		"\tCopy the login token from the email and enter it here:")
+
+	var resp struct {
+		Token string
+	}
+	questions := []*survey.Question{{
+		Name: "Token",
+		Prompt: &survey.Input{
+			Message: "Token:",
+		},
+		Validate: survey.Required,
+	}}
+	if err := survey.Ask(questions, &resp); err != nil {
+		log.Warn().Err(err).Msg("Failed to ask for token. Please try again, and make sure to run rootless-personio from a tty (don't pipe the output).")
+		return err
+	}
+	if err := client.UnlockAndLogin(auth.Email, auth.Password, resp.Token); err != nil {
+		return err
+	}
+	log.Info().Msg("Successfully unlocked and logged into account.")
+
+	return nil
 }
 
 func printOutputJSONOrYAML(model any) error {

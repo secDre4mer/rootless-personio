@@ -48,6 +48,7 @@ var (
 	ErrCSRFTokenNotFound  = errors.New("CSRF token not found")
 	ErrNotLoggedIn        = errors.New("not logged in")
 	ErrNon2xxStatusCode   = errors.New("non-2xx status code")
+	ErrUnlockRequired     = errors.New("unlock required")
 )
 
 type Client struct {
