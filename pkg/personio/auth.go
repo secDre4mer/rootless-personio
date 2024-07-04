@@ -106,7 +106,7 @@ func (c *Client) Login(email, pass string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrEmployeeIDNotFound, err)
 	}
-	c.EmployeeID = userActivity.Visitor.ID
+	c.EmployeeID = userActivity.User.ID
 	return nil
 }
 
@@ -114,8 +114,8 @@ func (c *Client) Login(email, pass string) error {
 //
 // Don't know for certain what this endpoint is, so keeping the function as
 // private in the meantime.
-func (c *Client) getUserActivity() (*userActivity, error) {
-	req, err := http.NewRequest(http.MethodGet, "/user-activity/api/v1/pendo", nil)
+func (c *Client) getUserActivity() (*navigationContext, error) {
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/navigation/context", nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -123,45 +123,25 @@ func (c *Client) getUserActivity() (*userActivity, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseResponseJSON[*userActivity](resp)
+	return ParseResponseJSON[*navigationContext](resp)
 }
 
-type userActivity struct {
-	Account userActivityAccount `json:"account"`
-	Enabled bool                `json:"enabled"`
-	Visitor userActivityVisitor `json:"visitor"`
+type navigationContext struct {
+	User navigationContextUser `json:"user"`
 }
 
-type userActivityVisitor struct {
-	EmploymentType      string `json:"employment_type"`        // ex: "internal"
-	HasReports          bool   `json:"has_reports"`            // ex: false
-	HasSupervisor       bool   `json:"has_supervisor"`         // ex: true
-	ID                  int    `json:"id"`                     // ex: 1234567
-	Role                string `json:"role"`                   // ex: "Employee"
-	Status              string `json:"status"`                 // ex: "active"
-	UserCreatedAt       string `json:"user_created_at"`        // ex: "2006-01-02 15:04:05"
-	UserIsAccountOwner  bool   `json:"user_is_account_owner"`  // ex: false
-	UserIsAdmin         bool   `json:"user_is_admin"`          // ex: false
-	UserIsContractOwner bool   `json:"user_is_contract_owner"` // ex: false
-	UserLang            string `json:"user_lang"`              // ex: "en"
-}
-
-type userActivityAccount struct {
-	AccountActiveEmployees     int    `json:"account_active_employees"`     // ex: 123
-	AccountCreatedAt           string `json:"account_created_at"`           // ex: "2006-01-02 15:04:05"
-	AccountExpiresOn           string `json:"account_expires_on"`           // ex: "2006-01-02"
-	AccountHostname            string `json:"account_hostname"`             // ex: "mycompany"
-	AccountIsTest              bool   `json:"account_is_test"`              // ex: false
-	AccountName                string `json:"account_name"`                 // ex: "My Company GmbH"
-	AccountPlanID              int    `json:"account_plan_id"`              // ex: 123
-	AccountSubcompaniesEnabled bool   `json:"account_subcompanies_enabled"` // ex: false
-	Addons                     string `json:"addons"`                       // ex: "productivity_plus,customization_plus,automation_plus"
-	BillingCountry             string `json:"billing_country"`              // ex: "DE"
-	EnabledPayrollIntegration  any    `json:"enabled_payroll_integration"`  // ex: null
-	ID                         int    `json:"id"`                           // ex: 1234
-	IsTrialAccount             bool   `json:"is_trial_account"`             // ex: false
-	PlanStatus                 string `json:"plan_status"`                  // ex: "active"
-	PlanType                   string `json:"plan_type"`                    // ex: "professional"
-	PlanVersion                int    `json:"plan_version"`                 // ex: 5
-	TrialConversionDate        any    `json:"trial_conversion_date"`        // ex: null
+type navigationContextUser struct {
+	ID                int    // ex: 123
+	Type              string // ex: "employee"
+	IsAdmin           bool   // ex: false
+	FullName          string // ex: "My Name"
+	Position          string // ex: "DevOps Engineer"
+	ProfilePictureURL string // ex: "/image-service/v1/images/1234/medium/186027875a90b993ea726ee9e7fbe79f7219d9b9.png"
+	Impersonated      bool   // ex: false
+	ImpersonatorId    any    // ex: null
+	Context           string // ex: "client"
+	PreferredName     string // ex: "My Name"
+	FirstName         string // ex: "My"
+	LastName          string // ex: "Name"
+	Email             string // ex: "my.name@example.com"
 }
