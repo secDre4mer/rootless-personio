@@ -9,6 +9,12 @@ SPDX-License-Identifier: CC-BY-4.0
 [![REUSE status](https://api.reuse.software/badge/github.com/applejag/rootless-personio)](https://api.reuse.software/info/github.com/applejag/rootless-personio)
 [![Go Reference](https://pkg.go.dev/badge/github.com/applejag/rootless-personio/pkg/personio.svg)](https://pkg.go.dev/github.com/applejag/rootless-personio/pkg/personio)
 
+> [!WARNING]
+> This project is currently broken. Personio keeps changing their login process
+> from time to time, and I don't have the energy to keep updating this code.
+> So this code once knew how to authenticate and get a login token, but not
+> anymore with Personio's most recent updates.
+
 Accessing [Personio's API](https://developer.personio.de/docs)
 requires API credentials [which does not scope to the employee level](https://developer.personio.de/discuss/634e4b08a3f8d80051c52cfe),
 meaning you can only get official API access as an admin user,
