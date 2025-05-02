@@ -26,80 +26,16 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/applejag/rootless-personio/pkg/util"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
-type AttendanceCalendar struct {
-	AttendanceRights         map[string]bool                  `json:"attendance_rights"`
-	EmployeeWorkingSchedules struct{}                         `json:"employee_working_schedules"`
-	AttendanceDays           Data[[]CalendarDay]              `json:"attendance_days"`
-	AttendancePeriods        Data[[]CalendarAttendancePeriod] `json:"attendance_periods"`
-	OvertimeItems            struct{}                         `json:"overtime_items"`
-	AttendanceAlerts         struct{}                         `json:"attendance_alerts"`
-	AbsencePeriods           Data[[]CalendarAbsencePeriod]    `json:"absence_periods"`
-	Holidays                 Data[[]CalendarHoliday]          `json:"holidays"`
-}
-
-type CalendarDay struct {
-	ID         uuid.UUID             `json:"id"` // ex: "d5bb4b32-c499-4f79-a534-93481505bd60"
-	Attributes CalendarDayAttributes `json:"attributes"`
-}
-
-type CalendarDayAttributes struct {
-	BreakMin    int    `json:"break_min"`    // Duration of breaks in minutes
-	DurationMin int    `json:"duration_min"` // Duration of attendance in minutes
-	Status      string `json:"status"`       // ex: "empty"
-	Day         string `json:"day"`          // ex: "2023-01-20"
-}
-
-type CalendarAttendancePeriod struct {
-	ID         uuid.UUID                          `json:"id"` // ex: "bc1edc0c-44ef-467f-89a0-10d0733efec5"
-	Attributes CalendarAttendancePeriodAttributes `json:"attributes"`
-}
-
-type CalendarAttendancePeriodAttributes struct {
-	AttendanceDayID uuid.UUID `json:"attendance_day_id"` // ex: "81954d73-0b0d-4053-a5dc-937bdd62f9f7"
-	Comment         *string   `json:"comment"`           // ex: ""
-	End             string    `json:"end"`               // ex: "2023-01-18T17:00:00Z"
-	LegacyBreakMin  int       `json:"legacy_break_min"`  // ex: 0
-	PeriodType      string    `json:"period_type"`       // ex: "work"
-	ProjectID       *int      `json:"project_id"`
-	Start           string    `json:"start"` // ex: "2023-01-18T13:00:00Z"
-}
-
-type CalendarAbsencePeriod struct {
-	ID                         string `json:"id"`   // ex: "123456789"
-	Name                       string `json:"name"` // ex: "Paid vacation"
-	TracksOvertime             bool   `json:"tracks_overtime"`
-	MeasurementUnit            string `json:"measurement_unit"` // ex: "day"
-	StartDate                  string `json:"start_date"`       // ex: "2022-12-22"
-	StartTime                  string `json:"start_time"`       // ex: "2022-12-22 00:00:00"
-	EndDate                    string `json:"end_date"`         // ex: "2022-12-28"
-	EndTime                    string `json:"end_time"`         // ex: "2022-12-29 00:00:00"
-	EffectiveDurationInMinutes *int   `json:"effective_duration_in_minutes"`
-	HalfDayStart               bool   `json:"half_day_start"`
-	HalfDayEnd                 bool   `json:"half_day_end"`
-}
-
-type CalendarHoliday struct {
-	HalfDay             bool   `json:"half_day"`
-	HolidayCalendarName string `json:"holiday_calendar_name"` // ex: "DE (Hamburg) Feiertage CompanyName"
-	ID                  int    `json:"id"`                    // ex: 123456
-	Name                string `json:"name"`                  // ex: "2. Weihnachtstag"
-	Date                string `json:"date"`                  // ex: "2022-12-26"
-}
-
-type Data[M any] struct {
-	Data M `json:"data"`
-}
-
-func (c *Client) GetMyAttendanceCalendar(startDate, endDate time.Time) (*AttendanceCalendar, error) {
+func (c *Client) GetMyAttendanceCalendar(startDate, endDate time.Time) ([]Timecard, error) {
 	return c.GetAttendanceCalendar(c.EmployeeID, startDate, endDate)
 }
 
-func (c *Client) GetAttendanceCalendar(employeeID int, startDate, endDate time.Time) (*AttendanceCalendar, error) {
+func (c *Client) GetAttendanceCalendar(employeeID int, startDate, endDate time.Time) ([]Timecard, error) {
 	if err := c.assertLoggedIn(); err != nil {
 		return nil, err
 	}
@@ -109,7 +45,7 @@ func (c *Client) GetAttendanceCalendar(employeeID int, startDate, endDate time.T
 	queryParams.Set("end_date", endDate.Format(time.DateOnly))
 
 	req, err := http.NewRequest("GET", fmt.Sprintf(
-		"/svc/attendance-bff/attendance-calendar/%d?%s",
+		"/svc/attendance-bff/v1/timesheet/%d?%s",
 		employeeID, queryParams.Encode()), nil)
 	if err != nil {
 		return nil, err
@@ -120,61 +56,35 @@ func (c *Client) GetAttendanceCalendar(employeeID int, startDate, endDate time.T
 		return nil, err
 	}
 
-	return ParseResponseJSON[*AttendanceCalendar](resp)
-}
-
-type Period struct {
-	ID         uuid.UUID  `json:"id"`          // ex: "46365bc8-482a-41b2-8d36-68491140edd9"
-	PeriodType PeriodType `json:"period_type"` // ex: "work"
-	Comment    *string    `json:"comment"`     // ex: ""
-	ProjectID  *int       `json:"project_id"`  // ex: null
-	Start      time.Time  `json:"start"`       // ex: "2023-01-18T08:00:00Z"
-	End        time.Time  `json:"end"`         // ex: "2023-01-18T12:00:00Z"
-
-	// Required by the HTTP API, but seemingly unused
-	LegacyBreakMin int `json:"legacy_break_min"` // ex: 0
-}
-
-func (p Period) GetComment() string {
-	if p.Comment == nil {
-		return ""
+	var timesheet TimecardResponse
+	if err := json.NewDecoder(resp.Body).Decode(&timesheet); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	return *p.Comment
+	return timesheet.Timecards, nil
 }
-
-func (p Period) GetProjectID() int {
-	if p.ProjectID == nil {
-		return 0
-	}
-	return *p.ProjectID
-}
-
-type PeriodType string
-
-const (
-	PeriodTypeWork  PeriodType = "work"
-	PeriodTypeBreak PeriodType = "break"
-)
 
 func (c *Client) SetAttendance(date time.Time, periods []Period) error {
 	if err := c.assertLoggedIn(); err != nil {
 		return err
 	}
 
+	var requestPeriods []RequestPeriod
+
 	for i := range periods {
 		if periods[i].ID == uuid.Nil {
 			periods[i].ID = uuid.New()
 		}
-		periods[i].Start = periods[i].Start.Truncate(time.Second).UTC()
-		periods[i].End = periods[i].End.Truncate(time.Second).UTC()
-		if periods[i].PeriodType == "" {
-			periods[i].PeriodType = PeriodTypeWork
+		periods[i].Start = PersonioTime{periods[i].Start.Truncate(time.Second).UTC()}
+		periods[i].End = PersonioTime{periods[i].End.Truncate(time.Second).UTC()}
+		if periods[i].Type == "" {
+			periods[i].Type = PeriodTypeWork
 		}
+		requestPeriods = append(requestPeriods, RequestPeriod(periods[i]))
 	}
 
-	body, err := json.Marshal(map[string]any{
-		"employee_id": c.EmployeeID,
-		"periods":     periods,
+	body, err := json.Marshal(SetAttendanceDayRequest{
+		EmployeeID: c.EmployeeID,
+		Periods:    requestPeriods,
 	})
 	if err != nil {
 		return err
@@ -186,7 +96,7 @@ func (c *Client) SetAttendance(date time.Time, periods []Period) error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPut, "/api/v1/attendances/days/"+dayID.String(), bodyReader)
+	req, err := http.NewRequest(http.MethodPut, "/svc/attendance-api/v1/days/"+dayID.String(), bodyReader)
 	if err != nil {
 		return err
 	}
@@ -201,6 +111,8 @@ func (c *Client) SetAttendance(date time.Time, periods []Period) error {
 	return err
 }
 
+// DeleteAttendance will delete a day's attendance.
+// Note: this seems to be broken in the Personio API, it returns a 403 error (despite being used by the web UI).
 func (c *Client) DeleteAttendance(date time.Time) error {
 	if err := c.assertLoggedIn(); err != nil {
 		return err
@@ -211,7 +123,7 @@ func (c *Client) DeleteAttendance(date time.Time) error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, "/api/v1/attendances/days/"+dayID.String()+"/periods", nil)
+	req, err := http.NewRequest(http.MethodDelete, "/svc/attendance-api/v1/days/"+dayID.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -264,33 +176,20 @@ func (c *Client) GetDayUUID(date time.Time) (*uuid.UUID, error) {
 			err)
 	}
 
-	c.cacheDayIDs(cal.AttendanceDays.Data, startDate, endDate)
+	c.cacheDayIDs(cal)
 	return c.dayIDCache[dateString], nil
 }
 
-func (c *Client) cacheDayIDs(days []CalendarDay, startDate, endDate time.Time) {
-	log.Debug().
-		Int("days", len(days)).
-		Time("start", startDate).
-		Time("end", endDate).
-		Msg("Caching UUIDs for days.")
+func (c *Client) cacheDayIDs(days []Timecard) {
+
 	// Cache known days
 	for _, day := range days {
-		// must clone the var so we don't take ref of the for loop var
-		id := day.ID
-		c.dayIDCache[day.Attributes.Day] = &id
-		log.Debug().Str("day", day.Attributes.Day).Stringer("uuid", id).
-			Msg("Cached existing UUID for day.")
-	}
-
-	// Set unknown days
-	loopEnd := endDate.Add(24 * time.Hour)
-	for date := startDate; date.Before(loopEnd); date = date.Add(24 * time.Hour) {
-		dateString := date.Format(time.DateOnly)
-		if _, ok := c.dayIDCache[dateString]; !ok {
-			c.dayIDCache[dateString] = nil
-			log.Debug().Str("day", dateString).Str("uuid", "nil").
-				Msg("Cached undefined UUID for day.")
+		id := day.DayID
+		if id == nil {
+			continue
 		}
+		c.dayIDCache[day.Date] = id
+		log.Debug().Str("day", day.Date).Stringer("uuid", id).
+			Msg("Cached existing UUID for day.")
 	}
 }

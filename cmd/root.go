@@ -221,18 +221,20 @@ func newLoggedInClient() (*personio.Client, error) {
 	}
 
 	var missingCredentials bool
-	if cfg.Auth.Email == "" {
-		missingCredentials = true
-		log.Error().Msg("Missing email! Must set auth.email config or PERSONIO_AUTH_EMAIL env var.")
-	}
-	if cfg.Auth.Password == "" {
-		missingCredentials = true
-		log.Error().Msg("Missing password! Must set auth.password config or PERSONIO_AUTH_PASSWORD env var.")
+	if !cfg.Auth.Keepass {
+		if cfg.Auth.Email == "" {
+			missingCredentials = true
+			log.Error().Msg("Missing email! Must set auth.email config or PERSONIO_AUTH_EMAIL env var.")
+		}
+		if cfg.Auth.Password == "" {
+			missingCredentials = true
+			log.Error().Msg("Missing password! Must set auth.password config or PERSONIO_AUTH_PASSWORD env var.")
+		}
 	}
 	if missingCredentials {
 		return nil, errors.New("missing credentials")
 	}
-	if err := client.Login(cfg.Auth.Email, cfg.Auth.Password); err != nil {
+	if err := client.Login(cfg.Auth); err != nil {
 		if err := handleLoginError(client, err, cfg.Auth); err != nil {
 			return nil, err
 		}
@@ -265,7 +267,7 @@ func handleLoginError(client *personio.Client, err error, auth config.Auth) erro
 		log.Warn().Err(err).Msg("Failed to ask for token. Please try again, and make sure to run rootless-personio from a tty (don't pipe the output).")
 		return err
 	}
-	if err := client.UnlockAndLogin(auth.Email, auth.Password, resp.Token); err != nil {
+	if err := client.UnlockAndLogin(auth, resp.Token); err != nil {
 		return err
 	}
 	log.Info().Msg("Successfully unlocked and logged into account.")

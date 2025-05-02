@@ -24,8 +24,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/invopop/jsonschema"
 	"github.com/applejag/rootless-personio/pkg/util"
+	"github.com/invopop/jsonschema"
 )
 
 // Config is the full configuration file.
@@ -39,7 +39,8 @@ type Config struct {
 	//
 	// Any query parameters and fragments will get removed.
 	BaseURL string `yaml:"baseUrl" jsonschema:"oneof_type=string;null" jsonschema_extras:"format=uri"`
-	Auth    Auth
+
+	Auth Auth
 
 	// MinimumPeriodDuration is the duration for which attendance periods that
 	// are shorter than will get skipped when creating or updating attendance.
@@ -60,6 +61,9 @@ type Config struct {
 // Auth contains configs for how the program should authenticate
 // with Personio.
 type Auth struct {
+	// When set to true, the program will connect to a running KeepassXC instance
+	// and fetch the credentials from there.
+	Keepass bool `yaml:"keepass,omitempty" jsonschema:"oneof_type=bool;null"`
 	// Email is your account's login email address.
 	Email string `jsonschema:"oneof_type=string;null" jsonschema_extras:"format=email"`
 	// Password is your account's login password.

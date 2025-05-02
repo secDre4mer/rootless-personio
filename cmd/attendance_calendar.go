@@ -76,7 +76,7 @@ func init() {
 	attendanceCalendarCmd.Flags().VarP(&attendanceCalendarFlags.endDate, "end", "e", "End date to show (default first day this month)")
 }
 
-func prettyPrintCalendar(cal *personio.AttendanceCalendar, startDate, endDate time.Time) error {
+func prettyPrintCalendar(cal []personio.Timecard, startDate, endDate time.Time) error {
 	year, month, _ := startDate.Date()
 	date := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	for date.Before(endDate) {

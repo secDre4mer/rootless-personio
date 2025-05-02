@@ -52,10 +52,11 @@ var (
 )
 
 type Client struct {
-	BaseURL    string
-	http       *http.Client
-	EmployeeID int
-	dayIDCache map[string]*uuid.UUID
+	BaseURL      string
+	http         *http.Client
+	EmployeeID   int
+	dayIDCache   map[string]*uuid.UUID
+	projectCache []Project
 }
 
 func New(baseURL string) (*Client, error) {
@@ -111,7 +112,7 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	if token, ok := c.csrfToken(req.URL); ok {
 		setHeaderDefault(req.Header, "X-CSRF-Token", token)
 	}
-	setHeaderDefault(req.Header, "Accept", "application/json, text/plain, */*")
+	setHeaderDefault(req.Header, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 	resp, err := DoRequest(c.http, req)
 

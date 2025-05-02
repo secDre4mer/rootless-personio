@@ -19,25 +19,32 @@
 package personio
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
+
+	"github.com/applejag/rootless-personio/pkg/config"
+	"golang.org/x/term"
+
+	"github.com/antchfx/htmlquery"
 )
 
 var (
 	csrfTokenErrorRegex = regexp.MustCompile(`REDUX_INITIAL_STATE\.bladeState\.messages\s*=\s*{[^}]*error:\s*"((?:\\"|[^"])*)"`)
 )
 
-func (c *Client) UnlockAndLogin(email, pass, emailToken string) error {
+func (c *Client) UnlockAndLogin(auth config.Auth, emailToken string) error {
 	if err := c.UnlockWithToken(emailToken); err != nil {
 		return fmt.Errorf("unlock account: %w", err)
 	}
-	return c.Login(email, pass)
+	return c.Login(auth)
 }
 
 func (c *Client) UnlockWithToken(emailToken string) error {
@@ -70,7 +77,12 @@ func (c *Client) UnlockWithToken(emailToken string) error {
 	return nil
 }
 
-func (c *Client) Login(email, pass string) error {
+func (c *Client) Login(auth config.Auth) error {
+	email, pass, twoFactorToken, err := c.fetchCredentials(auth)
+	if err != nil {
+		return fmt.Errorf("fetch credentials: %w", err)
+	}
+
 	params := url.Values{}
 	params.Set("email", email)
 	params.Set("password", pass)
@@ -98,6 +110,49 @@ func (c *Client) Login(email, pass string) error {
 		return ErrUnlockRequired
 	}
 
+	if strings.HasSuffix(resp.Request.URL.Path, "/login/google-2fa-token") {
+		// Pass two factor token to the request
+
+		// Read hidden token from response body
+		htmlDoc, err := htmlquery.Parse(resp.Body)
+		if err != nil {
+			return fmt.Errorf("could not parse 2 factor response body: %w", err)
+		}
+		tokenNode, err := htmlquery.Query(htmlDoc, "//input[@name='_token']")
+		if err != nil {
+			return fmt.Errorf("could not query 2 factor hidden token: %w", err)
+		}
+		hiddenToken := htmlquery.SelectAttr(tokenNode, "value")
+		if hiddenToken == "" {
+			return errors.New("could not find 2 factor hidden token")
+		}
+		if twoFactorToken == "" {
+			if term.IsTerminal(int(os.Stdin.Fd())) || os.Getenv("TERM") == "dumb" {
+				fmt.Print("2 factor token: ")
+				token, err := bufio.NewReader(os.Stdin).ReadString('\n')
+				if err != nil {
+					return fmt.Errorf("read 2 factor token: %w", err)
+				}
+				twoFactorToken = strings.TrimSuffix(token, "\n")
+			} else {
+				return errors.New("2 factor token needed, but not provided")
+			}
+		}
+
+		var twoFactorParams = url.Values{}
+		twoFactorParams.Set("token", twoFactorToken)
+		twoFactorParams.Set("_token", hiddenToken)
+		req, err := http.NewRequest(http.MethodPost, "/login/google-2fa-token", strings.NewReader(twoFactorParams.Encode()))
+		if err != nil {
+			return err
+		}
+
+		resp, err = c.RawForm(req)
+		if err != nil {
+			return err
+		}
+	}
+
 	if strings.TrimPrefix(resp.Request.URL.Path, "/") != "" {
 		return fmt.Errorf("%w: want path \"/\", got %q", ErrUnexpectedRedirect, resp.Request.URL.Path)
 	}
@@ -108,6 +163,13 @@ func (c *Client) Login(email, pass string) error {
 	}
 	c.EmployeeID = userActivity.User.ID
 	return nil
+}
+
+func (c *Client) fetchCredentials(auth config.Auth) (string, string, string, error) {
+	if !auth.Keepass {
+		return auth.Email, auth.Password, "", nil
+	}
+	return fetchKeepassCredentials(c.BaseURL)
 }
 
 // getUserActivity seems to get info about the currently logged in user.

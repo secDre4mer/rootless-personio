@@ -51,19 +51,19 @@ The input should be a stream of Personio attendance periods. Example:
       "start": "2023-01-18T08:00:00Z",
       "end": "2023-01-18T12:00:00Z",
       "comment": "Work before lunch",
-      "period_type": "work"
+      "type": "work"
     }
     {
       "start": "2023-01-18T12:00:00Z",
       "end": "2023-01-18T13:00:00Z",
       "comment": "Lunch break",
-      "period_type": "break"
+      "type": "break"
     }
     {
       "start": "2023-01-18T13:00:00Z",
       "end": "2023-01-18T17:00:00Z",
       "comment": "Work after lunch",
-      "period_type": "work"
+      "type": "work"
     }
 
 It is incorrect to provide a JSON array with the elements.
@@ -82,10 +82,15 @@ If you have a JSON array, you can convert it to a stream via jq like so:
 		}
 		defer file.Close()
 
+		client, err := newLoggedInClient()
+		if err != nil {
+			return err
+		}
+
 		var periods []personio.Period
 		dec := json.NewDecoder(file)
 		for {
-			var p personio.Period
+			var p importPeriod
 			err := dec.Decode(&p)
 			if errors.Is(err, io.EOF) {
 				break
@@ -96,26 +101,42 @@ If you have a JSON array, you can convert it to a stream via jq like so:
 			dur := p.End.Sub(p.Start)
 
 			log.Debug().
-				Str("type", string(p.PeriodType)).
+				Str("type", string(p.Type)).
 				Time("start", p.Start).
 				Time("end", p.End).
 				Str("dur", dur.Truncate(time.Second).String()).
-				Str("comment", p.GetComment()).
+				Str("comment", p.Comment).
 				Msg("Read attendance period.")
 
 			if dur < cfg.MinimumPeriodDuration {
 				log.Warn().
-					Str("type", string(p.PeriodType)).
+					Str("type", string(p.Type)).
 					Time("start", p.Start).
 					Time("end", p.End).
 					Str("dur", dur.Truncate(time.Second).String()).
-					Str("comment", p.GetComment()).
+					Str("comment", p.Comment).
 					Str("minimumDuration", cfg.MinimumPeriodDuration.String()).
 					Msg("Skipping period because it has a too short duration.")
 				continue
 			}
 
-			periods = append(periods, p)
+			personioPeriod := personio.Period{
+				Start: personio.PersonioTime{p.Start},
+				End:   personio.PersonioTime{p.End},
+				Type:  personio.PeriodType(p.Type),
+			}
+			if p.Project != "" {
+				projectId, err := client.GetProjectID(p.Project)
+				if err != nil {
+					return fmt.Errorf("failed to get project ID: %w", err)
+				}
+				personioPeriod.ProjectID = &projectId
+			}
+			if p.Comment != "" {
+				personioPeriod.Comment = &p.Comment
+			}
+
+			periods = append(periods, personioPeriod)
 		}
 
 		if len(periods) == 0 {
@@ -129,11 +150,6 @@ If you have a JSON array, you can convert it to a stream via jq like so:
 			return a.Key < b.Key
 		})
 
-		client, err := newLoggedInClient()
-		if err != nil {
-			return err
-		}
-
 		type PerDay struct {
 			Day     string            `json:"day"`
 			Periods []personio.Period `json:"periods"`
@@ -141,7 +157,7 @@ If you have a JSON array, you can convert it to a stream via jq like so:
 		var printableGroups []PerDay
 
 		for _, group := range periodsPerDay {
-			err = client.SetAttendance(group.Values[0].Start, group.Values)
+			err = client.SetAttendance(group.Values[0].Start.Time, group.Values)
 			if err != nil {
 				return err
 			}
@@ -159,6 +175,14 @@ If you have a JSON array, you can convert it to a stream via jq like so:
 			"groups": printableGroups,
 		})
 	},
+}
+
+type importPeriod struct {
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	Project string    `json:"project"`
+	Comment string    `json:"comment"`
+	Type    string    `json:"type"`
 }
 
 func init() {

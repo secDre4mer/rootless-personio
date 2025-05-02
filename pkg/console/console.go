@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/applejag/rootless-personio/pkg/personio"
+	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
 	"gopkg.in/typ.v4"
 )
@@ -48,7 +48,7 @@ var (
 	usageHelpColor   = color.New(color.FgHiBlack, color.Italic)
 )
 
-func PrintCalendarMonth(month time.Time, cal *personio.AttendanceCalendar) {
+func PrintCalendarMonth(month time.Time, cal []personio.Timecard) {
 	t := Table{}
 
 	t.SetSpacing("  ")
@@ -98,8 +98,8 @@ func PrintCalendarMonth(month time.Time, cal *personio.AttendanceCalendar) {
 	var weekTime time.Duration
 	for {
 		dayStr := strconv.Itoa(day.Day())
-		if calDay, ok := findCalendarDayAttendance(day, cal.AttendanceDays.Data); ok && calDay.Attributes.DurationMin > 0 {
-			dur := time.Minute * time.Duration(calDay.Attributes.DurationMin)
+		if calDay, ok := findCalendarDayAttendance(day, cal); ok && !calDay.IsOffDay {
+			dur := time.Minute * time.Duration(calDay.TargetHours.ContractualWorkDurationMinutes)
 			durStr := FormatDuration(dur)
 			t.WriteCellWidth(fmt.Sprintf(
 				"%s (%s)",
@@ -107,13 +107,6 @@ func PrintCalendarMonth(month time.Time, cal *personio.AttendanceCalendar) {
 				calendarAttendedDurColor.Sprint(durStr),
 			), len(dayStr)+len(durStr)+3)
 			weekTime += dur
-		} else if absence, ok := findCalendarDayAbsence(day, cal.AbsencePeriods.Data); ok {
-			t.WriteCellWidth(fmt.Sprintf(
-				"%s (%s)",
-				calendarAttendedColor.Sprint(dayStr),
-				calendarAbsenceColor.Sprint(absence.Name),
-			), len(dayStr)+len(absence.Name)+3)
-
 		} else {
 			t.WriteCellColor(dayStr, calendarEmptyColor)
 		}
@@ -183,33 +176,12 @@ func UsageTemplate() string {
 	return sb.String()
 }
 
-func findCalendarDayAttendance(day time.Time, days []personio.CalendarDay) (personio.CalendarDay, bool) {
+func findCalendarDayAttendance(day time.Time, days []personio.Timecard) (personio.Timecard, bool) {
 	dayStr := day.Format(time.DateOnly)
 	for _, calDay := range days {
-		if calDay.Attributes.Day == dayStr {
+		if calDay.Date == dayStr {
 			return calDay, true
 		}
 	}
-	return personio.CalendarDay{}, false
-}
-
-func findCalendarDayAbsence(day time.Time, days []personio.CalendarAbsencePeriod) (personio.CalendarAbsencePeriod, bool) {
-	day = day.Add(time.Minute)
-	const layout = "2006-01-02 15:04:05"
-	for _, absence := range days {
-		start, err := time.Parse(layout, absence.StartTime)
-		if err != nil {
-			fmt.Println("err: start time:", err)
-			continue
-		}
-		end, err := time.Parse(layout, absence.EndTime)
-		if err != nil {
-			fmt.Println("err: end time:", err)
-			continue
-		}
-		if day.After(start) && day.Before(end) {
-			return absence, true
-		}
-	}
-	return personio.CalendarAbsencePeriod{}, false
+	return personio.Timecard{}, false
 }

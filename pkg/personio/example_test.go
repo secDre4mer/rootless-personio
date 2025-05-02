@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/applejag/rootless-personio/pkg/config"
 	"github.com/applejag/rootless-personio/pkg/personio"
 )
 
@@ -36,7 +37,10 @@ func Example() {
 		log.Fatalln("Must set env var PERSONIO_EMAIL and PERSONIO_PASS")
 	}
 
-	if client.Login(email, password); err != nil {
+	if err := client.Login(config.Auth{
+		Email:    email,
+		Password: password,
+	}); err != nil {
 		log.Fatalln("Error logging in:", err)
 	}
 
