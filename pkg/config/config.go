@@ -51,6 +51,14 @@ type Config struct {
 	// - 2h12m30s
 	MinimumPeriodDuration time.Duration `yaml:"minimumPeriodDuration" jsonschema:"type=string"`
 
+	// StandardStartTime is the time of day when the program will
+	// assume that the work day starts. This is used when
+	// the program needs to create attendance periods, and
+	// the user has not specified a start time.
+	// The value must be in HH:MM format, and the program will
+	// assume that the time is in the local timezone.
+	StandardStartTime string `yaml:"standardStartTime" jsonschema:"type=string"`
+
 	// Output is the format of the command line results.
 	// This controls the format of the single command line
 	// result output written to STDOUT.
