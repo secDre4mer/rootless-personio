@@ -87,14 +87,24 @@ Use "rootless-personio [command] --help" for more information about a command.
 
 #### Update attendance (time tracking)
 
-You need to specify your attendance periods as a JSON stream in a JSON file,
-for example:
+There are two ways to update your attendance periods:
+
+1. **Using the CLI**: You can use the `rootless-personio attendance add` command
+   to add an attendance period directly from the command line, e.g.:
+
+   ```sh
+    rootless-personio attendance add 2025-04-01 "my project" 8h
+    ```
+
+2. **Using a JSON file**: You can use the `rootless-personio attendance set`
+   command to update your attendance periods in bulk using a JSON file.
 
 ```json
 {
   "start": "2023-01-18T08:00:00Z",
   "end": "2023-01-18T12:00:00Z",
   "comment": "Work before lunch",
+  "project": "my project",
   "period_type": "work"
 }
 {
@@ -110,9 +120,6 @@ for example:
   "period_type": "work"
 }
 ```
-
-Then let `rootless-personio` update your attendance periods by running the
-following command:
 
 ```sh
 rootless-personio attendance set --file file-with-stream.json
