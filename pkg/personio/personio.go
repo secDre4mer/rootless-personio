@@ -106,17 +106,23 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 
 	if errors.Is(err, ErrNon2xxStatusCode) && resp != nil {
 		contentType := resp.Header.Get("Content-Type")
-		if contentType == "text/plain" {
+		switch contentType {
+		case "text/plain":
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return resp, fmt.Errorf("read body: %w", err)
 			}
 			resp.Body.Close()
 			return resp, fmt.Errorf("non-2xx status code: %s", string(body))
-		}
-		_, parsedErr := ParseResponseJSON[any](resp)
-		if errors.As(parsedErr, &Error{}) {
-			return resp, parsedErr
+		case "application/json":
+			_, parsedErr := ParseResponseJSON[any](resp)
+			if errors.As(parsedErr, &Error{}) {
+				return resp, parsedErr
+			} else {
+				return resp, errors.Join(err, parsedErr)
+			}
+		default:
+			return resp, fmt.Errorf("non-2xx status code: %s, content type: %s", resp.Status, contentType)
 		}
 	}
 	return resp, err
