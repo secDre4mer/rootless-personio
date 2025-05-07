@@ -75,16 +75,6 @@ func New(baseURL string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) csrfToken(u *url.URL) (string, bool) {
-	cookies := c.http.Jar.Cookies(u)
-	for _, cookie := range cookies {
-		if cookie.Name == "XSRF-TOKEN" {
-			return cookie.Value, true
-		}
-	}
-	return "", false
-}
-
 func (c *Client) RawJSON(req *http.Request) (*http.Response, error) {
 	setHeaderDefault(req.Header, "Content-Type", "application/json")
 	setHeaderDefault(req.Header, "Accept", "application/json")
@@ -109,20 +99,47 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 	u.Path += req.URL.Path
 
 	req.URL = u
-	if token, ok := c.csrfToken(req.URL); ok {
-		setHeaderDefault(req.Header, "X-CSRF-Token", token)
-	}
+	c.setCsrfTokens(req)
 	setHeaderDefault(req.Header, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 	resp, err := DoRequest(c.http, req)
 
 	if errors.Is(err, ErrNon2xxStatusCode) && resp != nil {
+		contentType := resp.Header.Get("Content-Type")
+		if contentType == "text/plain" {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return resp, fmt.Errorf("read body: %w", err)
+			}
+			resp.Body.Close()
+			return resp, fmt.Errorf("non-2xx status code: %s", string(body))
+		}
 		_, parsedErr := ParseResponseJSON[any](resp)
 		if errors.As(parsedErr, &Error{}) {
 			return resp, parsedErr
 		}
 	}
 	return resp, err
+}
+
+func (c *Client) findCookie(url *url.URL, name string) (string, bool) {
+	cookies := c.http.Jar.Cookies(url)
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie.Value, true
+		}
+	}
+	return "", false
+}
+
+func (c *Client) setCsrfTokens(req *http.Request) {
+	if token, ok := c.findCookie(req.URL, "XSRF-TOKEN"); ok {
+		setHeaderDefault(req.Header, "X-CSRF-Token", token)
+		setHeaderDefault(req.Header, "X-XSRF-TOKEN", token)
+	}
+	if athenaToken, ok := c.findCookie(req.URL, "ATHENA-XSRF-TOKEN"); ok {
+		setHeaderDefault(req.Header, "X-ATHENA-XSRF-TOKEN", athenaToken)
+	}
 }
 
 func setHeaderDefault(headers http.Header, key, value string) {
