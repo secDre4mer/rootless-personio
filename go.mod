@@ -9,7 +9,6 @@ go 1.22.5
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/MarkusFreitag/keepassxc-go v1.5.1
-	github.com/antchfx/htmlquery v1.3.4
 	github.com/fatih/color v1.15.0
 	github.com/google/uuid v1.3.0
 	github.com/invopop/jsonschema v0.7.0
@@ -27,9 +26,7 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -44,7 +41,6 @@ require (
 	github.com/subosito/gotenv v1.4.2 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect

@@ -32,8 +32,6 @@ import (
 
 	"github.com/applejag/rootless-personio/pkg/config"
 	"golang.org/x/term"
-
-	"github.com/antchfx/htmlquery"
 )
 
 var (
@@ -82,17 +80,53 @@ func (c *Client) Login(auth config.Auth) error {
 	if err != nil {
 		return fmt.Errorf("fetch credentials: %w", err)
 	}
+	var resp *http.Response
+	startPage, err := http.NewRequest(http.MethodGet, "/", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	resp, err = c.Raw(startPage)
+	if err != nil {
+		return fmt.Errorf("get start page: %w", err)
+	}
+	if resp.Request.URL.Host != "login.personio.com" {
+		return fmt.Errorf("%w: want host %q, got %q", ErrUnexpectedRedirect, "login.personio.com", resp.Request.URL.Host)
+	}
+	if !strings.HasSuffix(resp.Request.URL.Path, "/u/login/identifier") {
+		return fmt.Errorf("%w: want path \"/u/login/identifier\", got %q", ErrUnexpectedRedirect, resp.Request.URL.Path)
+	}
+	state := resp.Request.URL.Query().Get("state")
+
+	enterUser, err := http.NewRequest(http.MethodPost, "https://login.personio.com/u/login/identifier", strings.NewReader(url.Values{
+		"username": []string{email},
+		"state":    []string{state},
+	}.Encode()))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	resp, err = c.RawForm(enterUser)
+	if err != nil {
+		return fmt.Errorf("enter user: %w", err)
+	}
+
+	if resp.Request.URL.Host != "login.personio.com" {
+		return fmt.Errorf("%w: want host %q, got %q", ErrUnexpectedRedirect, "login.personio.com", resp.Request.URL.Host)
+	}
+	if !strings.HasSuffix(resp.Request.URL.Path, "/u/login/password") {
+		return fmt.Errorf("%w: want path \"/u/login/password\", got %q", ErrUnexpectedRedirect, resp.Request.URL.Path)
+	}
+	state = resp.Request.URL.Query().Get("state")
 
 	params := url.Values{}
 	params.Set("email", email)
 	params.Set("password", pass)
-
-	req, err := http.NewRequest(http.MethodPost, "/login/index", strings.NewReader(params.Encode()))
+	params.Set("state", state)
+	req, err := http.NewRequest(http.MethodPost, "https://login.personio.com/u/login/password", strings.NewReader(params.Encode()))
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.RawForm(req)
+	resp, err = c.RawForm(req)
 	if err != nil {
 		return err
 	}
@@ -102,30 +136,14 @@ func (c *Client) Login(auth config.Auth) error {
 		return fmt.Errorf("parse base URL: %w", err)
 	}
 
-	if resp.Request.URL.Host != baseURL.Host {
+	if resp.Request.URL.Host != baseURL.Host && resp.Request.URL.Host != "login.personio.com" {
 		return fmt.Errorf("%w: want host %q, got %q", ErrUnexpectedRedirect, baseURL.Host, resp.Request.URL.Host)
 	}
 
-	if strings.HasSuffix(resp.Request.URL.Path, "/login/token-auth") {
-		return ErrUnlockRequired
-	}
+	state = resp.Request.URL.Query().Get("state")
 
-	if strings.HasSuffix(resp.Request.URL.Path, "/login/google-2fa-token") {
+	if strings.HasSuffix(resp.Request.URL.Path, "/u/mfa-otp-challenge") {
 		// Pass two factor token to the request
-
-		// Read hidden token from response body
-		htmlDoc, err := htmlquery.Parse(resp.Body)
-		if err != nil {
-			return fmt.Errorf("could not parse 2 factor response body: %w", err)
-		}
-		tokenNode, err := htmlquery.Query(htmlDoc, "//input[@name='_token']")
-		if err != nil {
-			return fmt.Errorf("could not query 2 factor hidden token: %w", err)
-		}
-		hiddenToken := htmlquery.SelectAttr(tokenNode, "value")
-		if hiddenToken == "" {
-			return errors.New("could not find 2 factor hidden token")
-		}
 		if twoFactorToken == "" {
 			if term.IsTerminal(int(os.Stdin.Fd())) || os.Getenv("TERM") == "dumb" {
 				fmt.Print("2 factor token: ")
@@ -140,9 +158,9 @@ func (c *Client) Login(auth config.Auth) error {
 		}
 
 		var twoFactorParams = url.Values{}
-		twoFactorParams.Set("token", twoFactorToken)
-		twoFactorParams.Set("_token", hiddenToken)
-		req, err := http.NewRequest(http.MethodPost, "/login/google-2fa-token", strings.NewReader(twoFactorParams.Encode()))
+		twoFactorParams.Set("code", twoFactorToken)
+		twoFactorParams.Set("state", state)
+		req, err := http.NewRequest(http.MethodPost, "https://login.personio.com/u/mfa-otp-challenge", strings.NewReader(twoFactorParams.Encode()))
 		if err != nil {
 			return err
 		}
@@ -169,7 +187,12 @@ func (c *Client) fetchCredentials(auth config.Auth) (string, string, string, err
 	if !auth.Keepass {
 		return auth.Email, auth.Password, "", nil
 	}
-	return fetchKeepassCredentials(c.BaseURL)
+	user, pw, tfa, err := fetchKeepassCredentials("https://login.personio.com/")
+	if err != nil {
+		// Fall back to the old method
+		user, pw, tfa, err = fetchKeepassCredentials(c.BaseURL)
+	}
+	return user, pw, tfa, err
 }
 
 // getUserActivity seems to get info about the currently logged in user.

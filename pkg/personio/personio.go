@@ -92,6 +92,12 @@ func (c *Client) Raw(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("parse base URL: %w", err)
 	}
 
+	if req.URL.Host != "" {
+		if !strings.HasSuffix(req.URL.Host, ".personio.com") {
+			return nil, fmt.Errorf("invalid host %q, expected *.personio.com", req.URL.Host)
+		}
+		u.Host = req.URL.Host
+	}
 	u.Fragment = req.URL.Fragment
 	u.RawFragment = req.URL.RawFragment
 	u.RawQuery = req.URL.RawQuery
